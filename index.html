@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>检验科试剂盘点管理系统</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,Microsoft Yahei,sans-serif}
 body{padding:12px;background:#f5f7fa;color:#222;max-width:1200px;margin:0 auto}
@@ -28,20 +29,21 @@ th,td{border:1px solid #ddd;padding:8px;text-align:left}
 th{background:#edf2f7}
 .warn{color:#c53030;font-weight:bold}
 .done{color:#2f855a;font-weight:bold}
+.qty-cell{cursor:pointer;color:#2b6cb0;text-decoration:underline}
 small{color:#666;font-size:12px}
 .file-input-wrap{margin:8px 0}
 ul{padding-left:20px}
+.edit-tip{color:#dd6b20;font-size:12px;margin:4px 0;display:none}
 </style>
 </head>
 <body>
 <h2>检验科试剂盘点管理系统</h2>
-<small>IndexedDB本地存储｜生化试剂比对｜生产日期+失效时间｜下拉选择档案名称分类｜CSV导出｜json备份恢复</small>
+<small>IndexedDB本地存储｜生化试剂比对｜可编辑库存｜Excel批量导入｜下拉选择档案名称分类｜CSV导出｜json备份恢复</small>
 
 <div class="tab-bar">
 <button class="tab active" data-tab="stock">库存管理</button>
 <button class="tab" data-tab="reagentlib">试剂档案</button>
 <button class="tab" data-tab="compare">生化试剂比对</button>
-<button class="tab" data-tab="scan">扫码盘点</button>
 <button class="tab" data-tab="export">备份导入&盘存导出</button>
 </div>
 
@@ -49,6 +51,8 @@ ul{padding-left:20px}
 <div id="stock" class="panel show">
 <div class="card">
 <h3>新增/编辑试剂库存</h3>
+<div class="edit-tip" id="editTip">🔴正在编辑已有库存记录 ID:<span id="editIdText"></span></div>
+<input type="hidden" id="editStockId" value="">
 <div class="row">
 <div class="form-item">
 <label>试剂名称（下拉选择档案已有）</label>
@@ -104,7 +108,7 @@ ul{padding-left:20px}
 </div>
 
 <div class="card">
-<h3>库存列表 <small>红色=临近过期(失效时间≤30天)｜绿色=已比对</small></h3>
+<h3>库存列表 <small>红色=临近过期(失效时间≤30天)｜绿色=已比对｜点击数量可快速修改</small></h3>
 <div id="stockTableWrap"></div>
 </div>
 </div>
@@ -152,28 +156,6 @@ ul{padding-left:20px}
 </div>
 </div>
 
-<!--扫码盘点面板-->
-<div id="scan" class="panel">
-<div class="card">
-<h3>摄像头扫码盘点</h3>
-<video id="video" autoplay muted playsinline style="max-width:100%;border:1px solid #aaa"></video>
-<p id="scanTip">点击开启扫码；⚠️本地file://文件无法调用摄像头，需要https网页</p>
-<button class="btn btn-primary" onclick="startScan()">开启扫码</button>
-<button class="btn btn-danger" onclick="stopScan()">关闭摄像头</button>
-<div class="row">
-<div class="form-item">
-<label>扫码识别结果</label>
-<input id="scanResult" readonly>
-</div>
-<div class="form-item">
-<label>本次盘点数量</label>
-<input type="number" id="scanCount" value="1">
-</div>
-</div>
-<button class="btn btn-primary" onclick="saveScanRecord()">保存盘点记录</button>
-</div>
-</div>
-
 <!--备份导入&盘存导出面板-->
 <div id="export" class="panel">
 <div class="card">
@@ -190,11 +172,20 @@ ul{padding-left:20px}
 <button class="btn btn-warn" onclick="importData()">执行导入</button>
 </div>
 </div>
+
+<div class="card">
+<h3>📥 Excel批量导入库存（.xls / .xlsx）</h3>
+<p>Excel第一行写表头，列名支持：试剂名称、分类、规格、包装说明、批号、生产日期、失效时间、库存数量、供应商、备注</p>
+<p style="color:#dd6b20">导入方式：<b>追加导入</b>（不会清空原有库存，新数据追加到列表末尾）</p>
+<input type="file" id="excelFile" accept=".xls,.xlsx">
+<button class="btn btn-primary" onclick="importExcel()">导入Excel库存</button>
+<p id="excelResult" style="margin-top:8px;font-size:13px"></p>
+</div>
 </div>
 
 <script>
 const DB_NAME="ReagentDB";
-const DB_VERSION=4;
+const DB_VERSION=6;
 let db=null;
 const stores={
 stock:"stock",
@@ -287,8 +278,9 @@ const opt=document.createElement("option");opt.value=c.name;cateDom.appendChild(
 })
 }
 
-//保存库存
+//保存库存（新增/编辑共用）
 window.saveStock=async function(){
+const editId=document.getElementById("editStockId").value;
 const name=document.getElementById("stockName").value.trim();
 const cate=document.getElementById("stockCate").value.trim();
 const spec=document.getElementById("stockSpec").value.trim();
@@ -306,15 +298,35 @@ const allCates=await getAll(stores.cateLib);
 if(!allNames.find(x=>x.name===name)) await add(stores.reagentLib,{name});
 if(!allCates.find(x=>x.name===cate)) await add(stores.cateLib,{name});
 
+if(editId){
+//编辑模式
+const allStock=await getAll(stores.stock);
+const item=allStock.find(d=>d.id===Number(editId));
+item.name=name;
+item.cate=cate;
+item.spec=spec;
+item.packageDesc=pack;
+item.batch=batch;
+item.prodDate=prodDate;
+item.expDate=expDate;
+item.num=num;
+item.sup=sup;
+item.remark=remark;
+await put(stores.stock,item);
+alert("✅编辑保存成功");
+}else{
+//新增模式
 await add(stores.stock,{
 name,cate,spec,packageDesc:pack,batch,prodDate,expDate,num,sup,remark,
 compareStatus:"未比对",createTime:new Date().toISOString()
 });
-clearStockForm();
-await renderAll();
 alert("✅保存库存成功");
 }
+clearStockForm();
+await renderAll();
+}
 
+//清空表单，退出编辑状态
 function clearStockForm(){
 document.getElementById("stockName").value="";
 document.getElementById("stockCate").value="";
@@ -326,6 +338,44 @@ document.getElementById("stockExpDate").value="";
 document.getElementById("stockNum").value=1;
 document.getElementById("stockSup").value="";
 document.getElementById("stockRemark").value="";
+document.getElementById("editStockId").value="";
+document.getElementById("editTip").style.display="none";
+document.getElementById("editIdText").innerText="";
+}
+
+//加载数据到表单，进入编辑模式
+window.editStock=async function(id){
+const all=await getAll(stores.stock);
+const item=all.find(d=>d.id===id);
+if(!item)return;
+document.getElementById("editStockId").value=item.id;
+document.getElementById("editTip").style.display="block";
+document.getElementById("editIdText").innerText=item.id;
+
+document.getElementById("stockName").value=item.name||"";
+document.getElementById("stockCate").value=item.cate||"";
+document.getElementById("stockSpec").value=item.spec||"";
+document.getElementById("stockPackage").value=item.packageDesc||"";
+document.getElementById("stockBatch").value=item.batch||"";
+document.getElementById("stockProdDate").value=item.prodDate||"";
+document.getElementById("stockExpDate").value=item.expDate||"";
+document.getElementById("stockNum").value=item.num||1;
+document.getElementById("stockSup").value=item.sup||"";
+document.getElementById("stockRemark").value=item.remark||"";
+}
+
+//快速修改库存数量
+window.quickEditQty=async function(id){
+const all=await getAll(stores.stock);
+const item=all.find(d=>d.id===id);
+if(!item)return;
+const newQty=prompt("修改库存数量：",item.num);
+if(newQty===null)return;
+const n=Number(newQty);
+if(isNaN(n)||n<0){alert("请输入有效数字");return;}
+item.num=n;
+await put(stores.stock,item);
+await renderAll();
 }
 
 //切换比对状态
@@ -338,7 +388,7 @@ await put(stores.stock,item);
 await renderAll();
 }
 
-//删除库存记录【修复】
+//删除库存记录
 window.delStock=async function(id){
 if(!confirm("确定删除这条库存记录？此操作不可恢复！")) return;
 await del(stores.stock,id);
@@ -372,11 +422,12 @@ html+=`<tr class="${cls}">
 <td>${item.batch||""}</td>
 <td>${item.prodDate||""}</td>
 <td>${item.expDate||""}</td>
-<td>${item.num}</td>
+<td class="qty-cell" onclick="quickEditQty(${item.id})" title="点击修改数量">${item.num}</td>
 <td>${item.sup||""}</td>
 <td class="${statusCls}">${item.compareStatus||"未比对"}</td>
 <td>${item.remark||""}</td>
 <td>
+<button class="btn btn-warn" onclick="editStock(${item.id})">编辑</button>
 <button class="btn btn-success" onclick="toggleCompareStatus(${item.id})">切换比对</button>
 <button class="btn btn-danger" onclick="delStock(${item.id})">删除</button>
 </td>
@@ -483,36 +534,6 @@ html+="</ul></div></div>";
 wrap.innerHTML=html;
 }
 
-//摄像头
-let mediaStream=null;
-window.startScan=async function(){
-try{
-if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-alert("当前浏览器不支持摄像头，请使用Chrome，部署在HTTPS");return;
-}
-const video=document.getElementById("video");
-mediaStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-video.srcObject=mediaStream;
-document.getElementById("scanTip").innerText="✅摄像头已开启，请扫码";
-}catch(e){
-console.error(e);
-if(e.name==="NotAllowedError") alert("❌摄像头权限被拒绝；本地file://打开文件浏览器禁止摄像头，需要HTTPS网页");
-else alert("❌开启失败："+e.message);
-}
-}
-
-window.stopScan=function(){
-if(mediaStream) mediaStream.getTracks().forEach(t=>t.stop());
-document.getElementById("video").srcObject=null;
-document.getElementById("scanTip").innerText="摄像头已关闭";
-}
-
-window.saveScanRecord=function(){
-const res=document.getElementById("scanResult").value;
-const cnt=Number(document.getElementById("scanCount").value);
-alert(`盘点条码:${res},数量${cnt}，复制内容填写到库存表单`);
-}
-
 //导出月度盘存
 async function exportInventoryCsv(){
 const list=await getAll(stores.stock);
@@ -576,6 +597,115 @@ for(const r of json.reagentLib) await add(stores.reagentLib,r);
 for(const c of json.cateLib) await add(stores.cateLib,c);
 await renderAll();
 alert("✅导入完成");
+}
+
+//============Excel导入============
+//列名映射：Excel中文列名 -> 系统字段名
+const COL_MAP={
+"试剂名称":"name",
+"名称":"name",
+"分类":"cate",
+"试剂分类":"cate",
+"规格":"spec",
+"试剂规格":"spec",
+"包装说明":"packageDesc",
+"包装":"packageDesc",
+"批号":"batch",
+"生产日期":"prodDate",
+"失效时间":"expDate",
+"有效期":"expDate",
+"失效日期":"expDate",
+"库存数量":"num",
+"数量":"num",
+"供应商":"sup",
+"备注":"remark"
+}
+
+//日期格式化：Excel日期序列号或字符串 -> YYYY-MM-DD
+function parseExcelDate(val){
+if(!val) return "";
+if(typeof val==="number"){
+//Excel日期序列号
+const d=new Date((val-25569)*86400*1000);
+const y=d.getUTCFullYear();
+const m=String(d.getUTCMonth()+1).padStart(2,"0");
+const day=String(d.getUTCDate()).padStart(2,"0");
+return `${y}-${m}-${day}`;
+}
+if(val instanceof Date){
+const y=val.getFullYear();
+const m=String(val.getMonth()+1).padStart(2,"0");
+const d=String(val.getDate()).padStart(2,"0");
+return `${y}-${m}-${d}`;
+}
+//字符串
+const s=String(val).trim();
+if(/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(s)){
+const parts=s.split(/[-/]/);
+return `${parts[0]}-${parts[1].padStart(2,"0")}-${parts[2].padStart(2,"0")}`;
+}
+return s;
+}
+
+window.importExcel=async function(){
+const fileInput=document.getElementById("excelFile");
+const file=fileInput.files[0];
+if(!file){alert("请先选择Excel文件（.xls 或 .xlsx）");return;}
+const resultDom=document.getElementById("excelResult");
+resultDom.innerText="正在解析...";
+
+try{
+const data=await file.arrayBuffer();
+const wb=XLSX.read(data,{type:"array",cellDates:true});
+const firstSheet=wb.SheetNames[0];
+const ws=wb.Sheets[firstSheet];
+const rows=XLSX.utils.sheet_to_json(ws,{defval:""});
+
+if(!rows.length){resultDom.innerText="❌Excel里没有数据";return;}
+
+let success=0;
+const allNames=await getAll(stores.reagentLib);
+const allCates=await getAll(stores.cateLib);
+const nameSet=new Set(allNames.map(x=>x.name));
+const cateSet=new Set(allCates.map(x=>x.name));
+
+for(const row of rows){
+const item={compareStatus:"未比对",createTime:new Date().toISOString()};
+let hasName=false;
+for(const key of Object.keys(row)){
+const field=COL_MAP[key.trim()];
+if(!field) continue;
+let val=row[key];
+if(field==="prodDate"||field==="expDate"){
+val=parseExcelDate(val);
+}
+if(field==="num"){
+val=Number(val)||0;
+}
+item[field]=val;
+if(field==="name"&&val) hasName=true;
+}
+if(!hasName) continue;
+//自动加入档案
+if(!nameSet.has(item.name)){
+await add(stores.reagentLib,{name:item.name});
+nameSet.add(item.name);
+}
+if(item.cate&&!cateSet.has(item.cate)){
+await add(stores.cateLib,{name:item.cate});
+cateSet.add(item.cate);
+}
+await add(stores.stock,item);
+success++;
+}
+
+resultDom.innerText=`✅导入成功！共导入 ${success} 条库存记录`;
+await renderAll();
+}catch(e){
+console.error(e);
+resultDom.innerText="❌导入失败："+e.message;
+alert("导入失败："+e.message);
+}
 }
 
 window.onload=async function(){
