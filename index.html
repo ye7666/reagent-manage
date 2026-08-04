@@ -1,194 +1,903 @@
 <!DOCTYPE html>
-<html lang="zh‑CN">
+<html lang="zh-CN">
 <head>
-<meta charset="UTF‑8">
-<meta name="viewport" content="width=device‑width, initial‑scale=1.0, maximum‑scale=1.0, user‑scalable=no">
-<title>试剂管理</title>
-<link rel="manifest" href="./manifest.webmanifest">
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>检验科试剂盘点管理系统</title>
+<link rel="manifest" href="manifest.webmanifest">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
-*{box‑sizing:border‑box;margin:0;padding:0;font‑family:‑apple‑system,BlinkMacSystemFont,system‑ui}
-body{padding:12px;background:#f5f7fa;color:#222;padding‑bottom:80px}
-.card{background:#fff;border‑radius:10px;padding:14px;margin‑bottom:12px;box‑shadow:0 1px 4px #00000015}
-input{width:100%;padding:10px;border:1px solid #ddd;border‑radius:8px;margin:6px 0;font‑size:16px}
-button{padding:10px 12px;border:none;border‑radius:8px;margin:4px;font‑size:15px;cursor:pointer}
-.btn‑primary{background:#007aff;color:#fff}
-.btn‑warn{background:#ff9500;color:#fff}
-.btn‑danger{background:#ff3b30;color:#fff}
-.btn‑gray{background:#e5e7eb;color:#333}
-.item{padding:10px;border‑bottom:1px solid #eee}
-.warn‑expire{background:#fff2cc}
-.danger‑expire{background:#ffdddd}
-#video{width:100%;border‑radius:8px;background:#000}
-.title{font‑size:18px;font‑weight:bold;margin:10px 0}
-.flex{display:flex;flex‑wrap:wrap}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+body{background:#f5f7fa;color:#333;max-width:1100px;margin:0 auto;padding:10px}
+h2{font-size:18px;margin:10px 0;color:#1a73e8}
+h3{font-size:15px;margin:8px 0;color:#555}
+
+/* 标签页 */
+.tabs{display:flex;gap:2px;background:#e8eaed;border-radius:8px;padding:3px;margin-bottom:12px;flex-wrap:wrap}
+.tab{flex:1;min-width:70px;padding:10px 6px;text-align:center;border-radius:6px;cursor:pointer;font-size:14px;font-weight:500;color:#5f6368;transition:.2s}
+.tab.active{background:#fff;color:#1a73e8;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.tab-content{display:none;background:#fff;border-radius:10px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.tab-content.active{display:block}
+
+/* 表单 */
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px}
+.form-group{display:flex;flex-direction:column}
+.form-group label{font-size:12px;color:#666;margin-bottom:3px}
+input,select{padding:8px;border:1px solid #dadce0;border-radius:6px;font-size:14px;width:100%}
+input:focus,select:focus{outline:none;border-color:#1a73e8;box-shadow:0 0 0 2px rgba(26,115,232,.15)}
+
+/* 按钮 */
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:500;transition:.15s;display:inline-flex;align-items:center;gap:4px}
+.btn-primary{background:#1a73e8;color:#fff}
+.btn-primary:hover{background:#1557b0}
+.btn-danger{background:#ea4335;color:#fff}
+.btn-danger:hover{background:#c5221f}
+.btn-success{background:#34a853;color:#fff}
+.btn-success:hover{background:#2d9249}
+.btn-warning{background:#fbbc04;color:#333}
+.btn-warning:hover{background:#f9ab00}
+.btn-secondary{background:#e8eaed;color:#333}
+.btn-secondary:hover{background:#dadce0}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-group{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+
+/* 筛选区 */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:10px;background:#f8f9fa;border-radius:8px}
+.filter-bar select,.filter-bar input{flex:1;min-width:100px}
+
+/* 列表卡片 */
+.list{margin-top:10px}
+.item-card{border:1px solid #e0e0e0;border-radius:8px;padding:10px 12px;margin-bottom:8px;transition:.15s;position:relative}
+.item-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.item-card.bio-chem{border-left:4px solid #ff9800;background:#fff8e1}
+.item-card.expire-red{border-left:4px solid #f44336;background:#ffebee}
+.item-card.expire-yellow{border-left:4px solid #ffc107;background:#fffde7}
+.item-card.low-stock{border-right:4px solid #9c27b0}
+.item-card.disabled{opacity:.5}
+.item-title{font-weight:600;font-size:15px;margin-bottom:4px;color:#202124}
+.item-meta{font-size:13px;color:#5f6368;line-height:1.7}
+.item-meta span{margin-right:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500;margin-right:6px}
+.badge-bio{background:#ffe0b2;color:#e65100}
+.badge-cold{background:#b3e5fc;color:#01579b}
+.badge-normal{background:#c8e6c9;color:#2e7d32}
+.badge-exp-red{background:#ffcdd2;color:#b71c1c}
+.badge-exp-yellow{background:#fff9c4;color:#f57f17}
+.badge-low{background:#e1bee7;color:#6a1b9a}
+.item-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+
+/* 统计卡片 */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px}
+.stat-card{background:linear-gradient(135deg,#1a73e8,#4285f4);color:#fff;padding:12px;border-radius:8px;text-align:center}
+.stat-card.warn{background:linear-gradient(135deg,#f57c00,#ffa726)}
+.stat-card.danger{background:linear-gradient(135deg,#d32f2f,#ef5350)}
+.stat-card.bio{background:linear-gradient(135deg,#e65100,#ff9800)}
+.stat-num{font-size:24px;font-weight:700}
+.stat-label{font-size:12px;opacity:.9;margin-top:2px}
+
+/* 扫码区 */
+#qr-reader{border-radius:8px;overflow:hidden;margin-bottom:10px;max-width:400px}
+#qr-reader-results{padding:10px;background:#f8f9fa;border-radius:8px;margin-top:10px;font-size:14px}
+
+/* 模态框 */
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:12px;padding:20px;max-width:550px;width:100%;max-height:90vh;overflow-y:auto}
+.modal h3{margin-bottom:12px;color:#1a73e8}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* 导入区域 */
+.import-area{border:2px dashed #dadce0;border-radius:10px;padding:24px;text-align:center;margin:10px 0;cursor:pointer;transition:.2s}
+.import-area:hover{border-color:#1a73e8;background:#e8f0fe}
+.import-area p{color:#5f6368;font-size:14px;margin-top:8px}
+
+/* 日志 */
+.log-item{padding:8px;border-bottom:1px solid #eee;font-size:13px}
+.log-item:last-child{border-bottom:none}
+.log-time{color:#999;font-size:11px}
+.log-desc{color:#333;margin-top:2px}
+
+/* 空状态 */
+.empty{text-align:center;padding:30px;color:#999;font-size:14px}
+
+/* 提示条 */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:8px;z-index:2000;opacity:0;transition:.3s;font-size:14px}
+.toast.show{opacity:1}
+.toast.success{background:#34a853}
+.toast.error{background:#ea4335}
+
+@media(max-width:600px){
+  .form-row{grid-template-columns:1fr 1fr}
+  .tabs{font-size:12px}
+  .tab{padding:8px 4px;font-size:12px}
+}
 </style>
 </head>
 <body>
-<div class="title">检验科试剂管理</div>
 
-<div class="card">
-<div>试剂名称</div>
-<input id="name" placeholder="试剂名称">
-<div>厂家</div>
-<input id="factory" placeholder="厂家">
-<div>规格</div>
-<input id="spec" placeholder="规格">
-<div>批号</div>
-<input id="batch" placeholder="批号">
-<div>有效期(yyyy‑mm‑dd)</div>
-<input id="expire" type="date">
-<div>库存数量</div>
-<input id="num" type="number" placeholder="数量">
-<div>存放位置</div>
-<input id="pos" placeholder="存放位置">
-<div class="flex">
-<button class="btn‑primary" onclick="addItem()">保存试剂</button>
-<button class="btn‑gray" onclick="openScan()">扫码</button>
-<button class="btn‑warn" onclick="exportCsv()">导出CSV备份</button>
-</div>
+<div id="toast" class="toast"></div>
+
+<h2>🧪 检验科试剂盘点管理系统</h2>
+<p style="font-size:12px;color:#666;margin-bottom:8px">💾数据保存在手机本地IndexedDB；禁止无痕模式，清除浏览器缓存会丢失数据，请定期导出JSON备份</p>
+
+<div class="stats" id="stats-bar"></div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="stock">📦 库存管理</div>
+  <div class="tab" data-tab="archive">📋 试剂档案</div>
+  <div class="tab" data-tab="scan">📷 扫码入库</div>
+  <div class="tab" data-tab="backup">💾 备份导出</div>
 </div>
 
-<div class="card">
-<div class="title">库存列表 <span id="warnTip"></span></div>
-<div id="list"></div>
+<!-- ==========库存管理========== -->
+<div class="tab-content active" id="tab-stock">
+  <h3>新增库存</h3>
+  <div class="form-row">
+    <div class="form-group">
+      <label>试剂名称 <span style="color:red">*</span></label>
+      <select id="s-name" onchange="onStockNameChange()">
+        <option value="">-- 选择试剂 --</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>厂家</label>
+      <input id="s-factory" placeholder="选择试剂后自动带出">
+    </div>
+    <div class="form-group">
+      <label>规格</label>
+      <input id="s-spec" list="spec-list" placeholder="选择或自定义输入">
+      <datalist id="spec-list"></datalist>
+    </div>
+    <div class="form-group">
+      <label>批号 <span style="color:red">*</span></label>
+      <input id="s-batch" placeholder="如：20260101">
+    </div>
+    <div class="form-group">
+      <label>生产日期 <span style="color:red">*</span></label>
+      <input id="s-prodDate" type="date">
+    </div>
+    <div class="form-group">
+      <label>失效日期 <span style="color:red">*</span></label>
+      <input id="s-expDate" type="date">
+    </div>
+    <div class="form-group">
+      <label>剩余数量（最小单位）<span style="color:red">*</span></label>
+      <input id="s-qty" type="number" step="0.1" min="0" placeholder="如：1.5">
+    </div>
+    <div class="form-group">
+      <label>包装说明</label>
+      <input id="s-pack" placeholder="如：1盒=2瓶" readonly>
+    </div>
+    <div class="form-group">
+      <label>存放位置</label>
+      <select id="s-location">
+        <option value="常温">常温</option>
+        <option value="冷库">冷库</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>试剂分类</label>
+      <select id="s-category">
+        <option value="生化">生化</option>
+        <option value="免疫">免疫</option>
+        <option value="临检">临检</option>
+        <option value="微生物">微生物</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-primary" onclick="addStock()">➕ 新增库存</button>
+    <button class="btn btn-secondary" onclick="clearStockForm()">清空表单</button>
+  </div>
+
+  <h3 style="margin-top:16px">库存列表
+    <span style="font-size:12px;color:#d32f2f">🔴剩余≤30天</span>
+    <span style="font-size:12px;color:#f57f17">🟡31‑90天</span>
+    <span style="font-size:12px;color:#6a1b9a">🟣低于自定义库存阈值</span>
+  </h3>
+  <div class="filter-bar">
+    <input id="f-search" placeholder="🔍 搜索名称/批号/厂家" oninput="renderStock()">
+    <select id="f-category" onchange="renderStock()">
+      <option value="">全部分类</option>
+      <option value="生化">生化</option>
+      <option value="免疫">免疫</option>
+      <option value="临检">临检</option>
+      <option value="微生物">微生物</option>
+      <option value="其他">其他</option>
+    </select>
+    <select id="f-location" onchange="renderStock()">
+      <option value="">全部位置</option>
+      <option value="常温">常温</option>
+      <option value="冷库">冷库</option>
+    </select>
+    <select id="f-expiry" onchange="renderStock()">
+      <option value="">全部效期</option>
+      <option value="red">≤30天(红色)</option>
+      <option value="yellow">31‑90天(黄色)</option>
+      <option value="normal">>90天正常</option>
+    </select>
+  </div>
+  <div id="stock-list" class="list"></div>
 </div>
 
-<div id="scanBox" class="card" style="display:none">
-<video id="video" autoplay playsinline></video>
-<button class="btn‑danger" onclick="closeScan()">关闭扫码</button>
+<!-- ==========试剂档案========== -->
+<div class="tab-content" id="tab-archive">
+  <h3>新增/编辑档案</h3>
+  <div class="form-row">
+    <div class="form-group">
+      <label>试剂名称 <span style="color:red">*</span></label>
+      <input id="a-name" placeholder="如：谷丙转氨酶测定试剂盒">
+    </div>
+    <div class="form-group">
+      <label>厂家</label>
+      <input id="a-factory" placeholder="生产厂家">
+    </div>
+    <div class="form-group">
+      <label>常用规格</label>
+      <input id="a-spec" list="spec-list-archive" placeholder="选择或自定义">
+      <datalist id="spec-list-archive"></datalist>
+    </div>
+    <div class="form-group">
+      <label>包装单位</label>
+      <input id="a-pack-unit" placeholder="如：盒">
+    </div>
+    <div class="form-group">
+      <label>每包装内含（最小单位数）</label>
+      <input id="a-pack-qty" type="number" step="0.1" placeholder="如：2">
+    </div>
+    <div class="form-group">
+      <label>最小使用单位</label>
+      <input id="a-min-unit" placeholder="如：瓶、人份">
+    </div>
+    <div class="form-group">
+      <label>默认存放位置</label>
+      <select id="a-location">
+        <option value="常温">常温</option>
+        <option value="冷库">冷库</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>试剂分类</label>
+      <select id="a-category">
+        <option value="生化">生化</option>
+        <option value="免疫">免疫</option>
+        <option value="临检">临检</option>
+        <option value="微生物">微生物</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>🔔最低库存预警阈值（自定义）</label>
+      <input id="a-min-stock" type="number" step="0.1" min="0" placeholder="总库存低于该数值触发提醒">
+    </div>
+    <div class="form-group">
+      <label>条码（多个用逗号分隔）</label>
+      <input id="a-barcode" placeholder="如：6901234567890,6909876543210">
+    </div>
+  </div>
+  <input type="hidden" id="a-edit-id" value="">
+  <div class="btn-group">
+    <button class="btn btn-primary" onclick="saveArchive()">💾 保存档案</button>
+    <button class="btn btn-secondary" onclick="clearArchiveForm()">清空</button>
+  </div>
+
+  <h3 style="margin-top:16px">档案列表 <span id="archive-count" style="font-size:13px;color:#999"></span></h3>
+  <div class="filter-bar">
+    <input id="af-search" placeholder="🔍 搜索名称/厂家" oninput="renderArchive()">
+    <select id="af-category" onchange="renderArchive()">
+      <option value="">全部分类</option>
+      <option value="生化">生化</option>
+      <option value="免疫">免疫</option>
+      <option value="临检">临检</option>
+      <option value="微生物">微生物</option>
+      <option value="其他">其他</option>
+    </select>
+    <select id="af-status" onchange="renderArchive()">
+      <option value="all">全部状态</option>
+      <option value="active">启用中</option>
+      <option value="disabled">已停用</option>
+    </select>
+  </div>
+  <div id="archive-list" class="list"></div>
+</div>
+
+<!-- ==========扫码入库========== -->
+<div class="tab-content" id="tab-scan">
+  <h3>扫码识别</h3>
+  <div class="btn-group">
+    <button class="btn btn-success" onclick="startScanner()">📷 开始扫码</button>
+    <button class="btn btn-danger" onclick="stopScanner()">⏹ 停止</button>
+  </div>
+  <div id="qr-reader"></div>
+  <div id="qr-reader-results">等待扫码...</div>
+
+  <h3 style="margin-top:16px">扫码结果（确认后入库）</h3>
+  <div class="form-row">
+    <div class="form-group">
+      <label>识别条码</label>
+      <input id="scan-code" readonly placeholder="扫码后自动填入">
+    </div>
+    <div class="form-group">
+      <label>试剂名称</label>
+      <input id="scan-name" placeholder="匹配档案后自动带出">
+    </div>
+    <div class="form-group">
+      <label>厂家</label>
+      <input id="scan-factory" placeholder="匹配档案后自动带出">
+    </div>
+    <div class="form-group">
+      <label>规格</label>
+      <input id="scan-spec" placeholder="匹配档案后自动带出">
+    </div>
+    <div class="form-group">
+      <label>批号 <span style="color:red">*</span></label>
+      <input id="scan-batch" placeholder="手动输入批号">
+    </div>
+    <div class="form-group">
+      <label>生产日期 <span style="color:red">*</span></label>
+      <input id="scan-prodDate" type="date">
+    </div>
+    <div class="form-group">
+      <label>失效日期 <span style="color:red">*</span></label>
+      <input id="scan-expDate" type="date">
+    </div>
+    <div class="form-group">
+      <label>数量（最小单位）<span style="color:red">*</span></label>
+      <input id="scan-qty" type="number" step="0.1" min="0" placeholder="剩余数量">
+    </div>
+    <div class="form-group">
+      <label>存放位置</label>
+      <select id="scan-location">
+        <option value="常温">常温</option>
+        <option value="冷库">冷库</option>
+      </select>
+    </div>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-primary" onclick="addStockFromScan()">✅ 确认入库</button>
+    <button class="btn btn-secondary" onclick="saveAsNewArchive()">📝 保存为新档案</button>
+  </div>
+  <p style="font-size:12px;color:#999;margin-top:6px">💡 扫到陌生条码：填好信息后点"保存为新档案"，下次再扫就会自动匹配</p>
+</div>
+
+<!-- ==========备份导出========== -->
+<div class="tab-content" id="tab-backup">
+  <h3>📊 导出 Excel</h3>
+  <p style="font-size:13px;color:#666;margin-bottom:8px">导出一个 xlsx 文件，包含 3 个工作表：试剂档案、当前库存、盘点日志</p>
+  <button class="btn btn-success" onclick="exportExcel()">📥 导出 Excel 台账</button>
+
+  <h3 style="margin-top:20px">📦 完整数据库备份（JSON）</h3>
+  <p style="font-size:13px;color:#666;margin-bottom:8px">用于换设备/换浏览器时恢复全部数据，比 Excel 更完整，建议经常备份</p>
+  <div class="btn-group">
+    <button class="btn btn-primary" onclick="exportJSON()">📤 导出备份文件</button>
+    <label class="btn btn-warning" style="cursor:pointer">
+      📥 导入恢复
+      <input type="file" id="json-import" accept=".json" style="display:none" onchange="importJSON(event)">
+    </label>
+  </div>
+
+  <h3 style="margin-top:20px">📋 批量导入档案（Excel）</h3>
+  <div class="import-area" onclick="document.getElementById('excel-import').click()">
+    <div style="font-size:36px">📂</div>
+    <p>点击选择 Excel 文件，批量导入试剂档案<br><span style="font-size:11px">支持 .xlsx / .xls</span></p>
+    <input type="file" id="excel-import" accept=".xlsx,.xls" style="display:none" onchange="importArchiveExcel(event)">
+  </div>
+
+  <h3 style="margin-top:20px">📝 最近盘点日志</h3>
+  <div id="log-list" style="max-height:300px;overflow-y:auto;border:1px solid #eee;border-radius:8px"></div>
+</div>
+
+<!--编辑库存弹窗-->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <h3>编辑库存</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>试剂名称</label>
+        <input id="e-name" readonly>
+      </div>
+      <div class="form-group">
+        <label>批号</label>
+        <input id="e-batch">
+      </div>
+      <div class="form-group">
+        <label>生产日期</label>
+        <input id="e-prodDate" type="date">
+      </div>
+      <div class="form-group">
+        <label>失效日期</label>
+        <input id="e-expDate" type="date">
+      </div>
+      <div class="form-group">
+        <label>剩余数量（最小单位）</label>
+        <input id="e-qty" type="number" step="0.1" min="0">
+      </div>
+      <div class="form-group">
+        <label>存放位置</label>
+        <select id="e-location">
+          <option value="常温">常温</option>
+          <option value="冷库">冷库</option>
+        </select>
+      </div>
+    </div>
+    <input type="hidden" id="e-id">
+    <input type="hidden" id="e-old-qty">
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveStockEdit()">保存</button>
+    </div>
+  </div>
 </div>
 
 <script>
-let db;
-const DB_NAME = "ReagentDB";
-const STORE = "reagents";
+// ==========IndexedDB持久化，数据存在手机本地==========
+const DB_NAME = 'ReagentDB_v3';
+const DB_VERSION = 3;
+let db = null;
 
-//初始化IndexedDB
-function initDB(){
-return new Promise((res,rej)=>{
-const req = indexedDB.open(DB_NAME,1);
-req.onupgradeneeded=e=>{
-db=e.target.result;
-if(!db.objectStoreNames.contains(STORE)){
-db.createObjectStore(STORE,{keyPath:"id",autoIncrement:true});
-}
-};
-req.onsuccess=e=>{db=e.target.result;res()};
-req.onerror=e=>rej(e);
-})
-}
-
-async function addItem(){
-const name=document.getElementById("name").value.trim();
-const factory=document.getElementById("factory").value.trim();
-const spec=document.getElementById("spec").value.trim();
-const batch=document.getElementById("batch").value.trim();
-const expire=document.getElementById("expire").value;
-const num=Number(document.getElementById("num").value);
-const pos=document.getElementById("pos").value.trim();
-if(!name||!batch||!expire){alert("名称、批号、有效期必填");return}
-const tx=db.transaction([STORE],"readwrite");
-tx.objectStore(STORE).add({name,factory,spec,batch,expire,num,pos,ct:new Date().toISOString()});
-await tx.complete;
-clearInput();
-renderList();
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (db) { resolve(db); return; }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      db = e.target.result;
+      if (!db.objectStoreNames.contains('archive')) {
+        const s = db.createObjectStore('archive', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('name', 'name', { unique: false });
+        s.createIndex('barcode', 'barcode', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('stock')) {
+        const s = db.createObjectStore('stock', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('archiveId', 'archiveId', { unique: false });
+        s.createIndex('batch', 'batch', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('logs')) {
+        db.createObjectStore('logs', { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = e => reject(e);
+  });
 }
 
-function clearInput(){
-["name","factory","spec","batch","expire","num","pos"].forEach(id=>document.getElementById(id).value="")
+function dbAdd(store, data) {
+  return new Promise(async (res, rej) => {
+    await openDB();
+    const tx = db.transaction(store, 'readwrite');
+    const r = tx.objectStore(store).add(data);
+    r.onsuccess = () => res(r.result);
+    r.onerror = e => rej(e);
+  });
+}
+function dbPut(store, data) {
+  return new Promise(async (res, rej) => {
+    await openDB();
+    const tx = db.transaction(store, 'readwrite');
+    const r = tx.objectStore(store).put(data);
+    r.onsuccess = () => res(r.result);
+    r.onerror = e => rej(e);
+  });
+}
+function dbGetAll(store) {
+  return new Promise(async (res, rej) => {
+    await openDB();
+    const tx = db.transaction(store, 'readonly');
+    const r = tx.objectStore(store).getAll();
+    r.onsuccess = () => res(r.result);
+    r.onerror = e => rej(e);
+  });
+}
+function dbGet(store, id) {
+  return new Promise(async (res, rej) => {
+    await openDB();
+    const tx = db.transaction(store, 'readonly');
+    const r = tx.objectStore(store).get(id);
+    r.onsuccess = () => res(r.result);
+    r.onerror = e => rej(e);
+  });
+}
+function dbDelete(store, id) {
+  return new Promise(async (res, rej) => {
+    await openDB();
+    const tx = db.transaction(store, 'readwrite');
+    const r = tx.objectStore(store).delete(id);
+    r.onsuccess = () => res();
+    r.onerror = e => rej(e);
+  });
+}
+function dbClear(store) {
+  return new Promise(async (res, rej) => {
+    await openDB();
+    const tx = db.transaction(store, 'readwrite');
+    const r = tx.objectStore(store).clear();
+    r.onsuccess = () => res();
+    r.onerror = e => rej(e);
+  });
 }
 
-async function getAll(){
-const tx=db.transaction(STORE);
-const store=tx.objectStore(STORE);
-return await getAllReq(store.getAll())
-}
-function getAllReq(req){
-return new Promise(res=>{req.onsuccess=e=>res(e.target.result)})
-}
-
-async function delItem(id){
-if(!confirm("确定删除这条记录？"))return;
-const tx=db.transaction([STORE],"readwrite");
-tx.objectStore(STORE).delete(id);
-await tx.complete;
-renderList();
+//工具
+function toast(msg, type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show '+type;
+  setTimeout(()=>t.className='toast',2200);
 }
 
-async function renderList(){
-const arr=await getAll();
-const now=new Date();
-const thirty=new Date();thirty.setDate(now.getDate()+30);
-let html="";
-let warnCount=0;
-arr.sort((a,b)=>new Date(a.expire)-new Date(b.expire));
-arr.forEach(i=>{
-const ed=new Date(i.expire);
-let cls="";
-if(ed<now){cls="danger‑expire";warnCount++}
-else if(ed<thirty){cls="warn‑expire";warnCount++}
-html+=`<div class="item ${cls}">
-<div><b>${i.name}</b> ${i.spec}</div>
-<div>批号:${i.batch}｜效期:${i.expire}</div>
-<div>数量:${i.num}｜位置:${i.pos}｜厂家:${i.factory}</div>
-<button class="btn‑danger" onclick="delItem(${i.id})">删除</button>
-</div>`
-})
-document.getElementById("list").innerHTML=html||"<div style='padding:10px'>暂无试剂数据</div>";
-document.getElementById("warnTip").innerText=warnCount>0?`【${warnCount}条试剂过期/即将到期】`:"";
+//计算距离失效日期剩余天数
+function daysToExpire(expDateStr){
+  if(!expDateStr) return 9999;
+  const now=new Date(); now.setHours(0,0,0,0);
+  const exp=new Date(expDateStr); exp.setHours(0,0,0,0);
+  return Math.ceil((exp.getTime()-now.getTime())/(1000*3600*24));
 }
 
-//导出CSV
-async function exportCsv(){
-const arr=await getAll();
-let s="名称,厂家,规格,批号,有效期,库存数量,存放位置\n";
-arr.forEach(i=>{
-s+=`"${i.name}","${i.factory}","${i.spec}","${i.batch}","${i.expire}",${i.num},"${i.pos}"\n`
-})
-const blob=new Blob([s],{type:"text/csv;charset=utf‑8"});
-const a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="试剂库存备份.csv";
-a.click();
-alert("已导出备份！请保存到手机文件App");
+function fmtDate(d){
+  if(!d)return '';
+  const dt=new Date(d);
+  return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+}
+
+function addLog(desc){
+  dbAdd('logs',{desc,time:new Date().toISOString()});
+}
+
+//标签页切换
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-'+t.dataset.tab).classList.add('active');
+    if(t.dataset.tab==='stock')renderStock();
+    if(t.dataset.tab==='archive')renderArchive();
+    if(t.dataset.tab==='backup')renderLogs();
+  }
+});
+
+//预置规格
+const PRESET_SPECS=['200人份/盒','400人份/盒','500人份/盒','100测试/盒','200测试/盒','50测试/盒','1盒2瓶','1盒4瓶','1瓶','5ml','10ml','20ml','50ml','100ml'];
+function refreshSpecDatalist(){
+  ['spec-list','spec-list-archive'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.innerHTML=PRESET_SPECS.map(s=>`<option value="${s}">`).join('');
+  })
+}
+
+//档案
+async function saveArchive(){
+  const name=document.getElementById('a-name').value.trim();
+  if(!name){toast('请填写试剂名称','error');return;}
+  const editId=document.getElementById('a-edit-id').value;
+  const data={
+    name,
+    factory:document.getElementById('a-factory').value.trim(),
+    spec:document.getElementById('a-spec').value.trim(),
+    packUnit:document.getElementById('a-pack-unit').value.trim(),
+    packQty:parseFloat(document.getElementById('a-pack-qty').value)||0,
+    minUnit:document.getElementById('a-min-unit').value.trim(),
+    location:document.getElementById('a-location').value,
+    category:document.getElementById('a-category').value,
+    minStock:parseFloat(document.getElementById('a-min-stock').value)||0,
+    barcode:document.getElementById('a-barcode').value.trim(),
+    active:true,
+    updateTime:new Date().toISOString()
+  };
+  if(editId){
+    data.id=parseInt(editId);
+    const old=await dbGet('archive',data.id);
+    if(old)data.active=old.active;
+    await dbPut('archive',data);
+    addLog(`编辑档案：${name}`);
+    toast('档案已更新','success');
+  }else{
+    await dbAdd('archive',data);
+    addLog(`新增档案：${name}`);
+    toast('档案已保存','success');
+  }
+  clearArchiveForm();
+  renderArchive();
+  refreshStockNameSelect();
+}
+function clearArchiveForm(){
+  ['a-name','a-factory','a-spec','a-pack-unit','a-pack-qty','a-min-unit','a-min-stock','a-barcode'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('a-edit-id').value='';
+  document.getElementById('a-location').value='常温';
+  document.getElementById('a-category').value='生化';
+}
+async function editArchive(id){
+  const a=await dbGet('archive',id);
+  if(!a)return;
+  document.getElementById('a-edit-id').value=a.id;
+  document.getElementById('a-name').value=a.name||'';
+  document.getElementById('a-factory').value=a.factory||'';
+  document.getElementById('a-spec').value=a.spec||'';
+  document.getElementById('a-pack-unit').value=a.packUnit||'';
+  document.getElementById('a-pack-qty').value=a.packQty||'';
+  document.getElementById('a-min-unit').value=a.minUnit||'';
+  document.getElementById('a-location').value=a.location||'常温';
+  document.getElementById('a-category').value=a.category||'生化';
+  document.getElementById('a-min-stock').value=a.minStock||'';
+  document.getElementById('a-barcode').value=a.barcode||'';
+  document.querySelector('.tab[data-tab="archive"]').click();
+  window.scrollTo(0,0);
+  toast('已载入档案，修改后点保存','success');
+}
+async function toggleArchiveActive(id){
+  const a=await dbGet('archive',id);
+  if(!a)return;
+  a.active=!a.active;
+  await dbPut('archive',a);
+  addLog(`${a.active?'启用':'停用'}档案：${a.name}`);
+  renderArchive();refreshStockNameSelect();
+  toast(a.active?'已启用':'已停用','success');
+}
+async function deleteArchive(id){
+  const a=await dbGet('archive',id);
+  if(!a)return;
+  if(!confirm(`确定删除档案「${a.name}」吗？关联库存记录不会删除`))return;
+  await dbDelete('archive',id);
+  addLog(`删除档案：${a.name}`);
+  renderArchive();refreshStockNameSelect();
+  toast('已删除','success');
+}
+async function renderArchive(){
+  const list=await dbGetAll('archive');
+  const search=document.getElementById('af-search').value.toLowerCase();
+  const cat=document.getElementById('af-category').value;
+  const status=document.getElementById('af-status').value;
+  let filtered=list.filter(a=>{
+    if(search&&!(a.name||'').toLowerCase().includes(search)&&!(a.factory||'').toLowerCase().includes(search))return false;
+    if(cat&&a.category!==cat)return false;
+    if(status==='active'&&!a.active)return false;
+    if(status==='disabled'&&a.active)return false;
+    return true;
+  });
+  filtered.sort((a,b)=>(a.name||'').localeCompare(b.name||'','zh'));
+  document.getElementById('archive-count').textContent=`（共 ${filtered.length} 条）`;
+  const el=document.getElementById('archive-list');
+  if(filtered.length===0){el.innerHTML='<div class="empty">暂无档案，先新增或批量导入</div>';return;}
+  el.innerHTML=filtered.map(a=>{
+    const packDesc=a.packUnit&&a.packQty&&a.minUnit?`${a.packQty}${a.minUnit}/${a.packUnit}`:'';
+    return `<div class="item-card ${a.category==='生化'?'bio-chem':''} ${!a.active?'disabled':''}">
+      <div class="item-title">${a.name||'(未命名)'}
+      ${a.category==='生化'?'<span class="badge badge-bio">生化</span>':''}
+      ${!a.active?'<span class="badge" style="background:#eee;color:#999">已停用</span>':''}</div>
+      <div class="item-meta">
+        <span>🏭 ${a.factory||'-'}</span>
+        <span>📏 ${a.spec||'-'}</span>
+        <span>${a.location==='冷库'?'<span class="badge badge-cold">冷库</span>':'<span class="badge badge-normal">常温</span>'}</span>
+        ${packDesc?`<span>📦 ${packDesc}</span>`:''}
+        ${a.minStock?`<span>🔔库存预警阈值:${a.minStock}${a.minUnit||''}</span>`:''}
+        ${a.barcode?`<br>🏷️条码:${a.barcode}`:''}
+      </div>
+      <div class="item-actions">
+        <button class="btn btn-sm btn-primary" onclick="editArchive(${a.id})">编辑</button>
+        <button class="btn btn-sm ${a.active?'btn-warning':'btn-success'}" onclick="toggleArchiveActive(${a.id})">${a.active?'停用':'启用'}</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteArchive(${a.id})">删除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+//库存
+async function refreshStockNameSelect(){
+  const list=await dbGetAll('archive');
+  const active=list.filter(a=>a.active).sort((a,b)=>(a.name||'').localeCompare(b.name||'','zh'));
+  const sel=document.getElementById('s-name');
+  sel.innerHTML='<option value="">-- 选择试剂 --</option>'+active.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+}
+async function onStockNameChange(){
+  const id=parseInt(document.getElementById('s-name').value);
+  if(!id)return;
+  const a=await dbGet('archive',id);
+  if(!a)return;
+  document.getElementById('s-factory').value=a.factory||'';
+  document.getElementById('s-spec').value=a.spec||'';
+  document.getElementById('s-location').value=a.location||'常温';
+  document.getElementById('s-category').value=a.category||'生化';
+  if(a.packUnit&&a.packQty&&a.minUnit){
+    document.getElementById('s-pack').value=`1${a.packUnit}=${a.packQty}${a.minUnit}`;
+  }else document.getElementById('s-pack').value='';
+}
+async function addStock(){
+  const archiveId=parseInt(document.getElementById('s-name').value);
+  const batch=document.getElementById('s-batch').value.trim();
+  const prodDate=document.getElementById('s-prodDate').value;
+  const expDate=document.getElementById('s-expDate').value;
+  const qty=parseFloat(document.getElementById('s-qty').value);
+  if(!archiveId){toast('请选择试剂名称','error');return;}
+  if(!batch){toast('请填写批号','error');return;}
+  if(!prodDate){toast('请填写生产日期','error');return;}
+  if(!expDate){toast('请填写失效日期','error');return;}
+  if(isNaN(qty)||qty<0){toast('请填写有效数量','error');return;}
+
+  const allStock=await dbGetAll('stock');
+  const dup=allStock.find(s=>s.archiveId===archiveId&&s.batch===batch);
+  if(dup&&!confirm(`该试剂已存在相同批号「${batch}」库存，确认继续新增？`))return;
+
+  const a=await dbGet('archive',archiveId);
+  const data={
+    archiveId,
+    name:a?a.name:'',
+    factory:document.getElementById('s-factory').value.trim(),
+    spec:document.getElementById('s-spec').value.trim(),
+    batch,
+    prodDate,
+    expDate,
+    qty,
+    location:document.getElementById('s-location').value,
+    category:document.getElementById('s-category').value,
+    packUnit:a?a.packUnit:'',
+    packQty:a?a.packQty:0,
+    minUnit:a?a.minUnit:'',
+    createTime:new Date().toISOString(),
+    updateTime:new Date().toISOString()
+  };
+  await dbAdd('stock',data);
+  addLog(`新增库存：${a?a.name:''} 批号${batch}，数量${qty}`);
+  toast('库存新增成功','success');
+  clearStockForm();
+  renderStock();updateStats();
+}
+function clearStockForm(){
+  document.getElementById('s-name').value='';
+  ['s-factory','s-spec','s-batch','s-prodDate','s-expDate','s-qty','s-pack'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('s-location').value='常温';
+  document.getElementById('s-category').value='生化';
+}
+async function renderStock(){
+  const list=await dbGetAll('stock');
+  const archives=await dbGetAll('archive');
+  const archiveMap={}; archives.forEach(x=>archiveMap[x.id]=x);
+
+  const search=document.getElementById('f-search').value.toLowerCase();
+  const cat=document.getElementById('f-category').value;
+  const loc=document.getElementById('f-location').value;
+  const expFilter=document.getElementById('f-expiry').value;
+
+  let filtered=list.filter(s=>{
+    if(search){
+      const txt=(s.name||'')+(s.batch||'')+(s.factory||'');
+      if(!txt.toLowerCase().includes(search))return false;
+    }
+    if(cat&&s.category!==cat)return false;
+    if(loc&&s.location!==loc)return false;
+    const dte=daysToExpire(s.expDate);
+    if(expFilter==='red'&&dte>30)return false;
+    if(expFilter==='yellow'&&(dte<=30||dte>90))return false;
+    if(expFilter==='normal'&&dte<=90)return false;
+    return true;
+  });
+  filtered.sort((a,b)=>daysToExpire(a.expDate)-daysToExpire(b.expDate));
+
+  const el=document.getElementById('stock-list');
+  if(filtered.length===0){el.innerHTML='<div class="empty">暂无库存记录</div>';return;}
+
+  el.innerHTML=filtered.map(s=>{
+    const dte=daysToExpire(s.expDate);
+    let cls='item-card';
+    let badges='';
+    if(dte<=0){
+      cls+=' expire-red';
+      badges+='<span class="badge badge-exp-red">已过期</span>';
+    }else if(dte<=30){
+      cls+=' expire-red';
+      badges+=`<span class="badge badge-exp-red">剩余${dte}天(红色告警)</span>`;
+    }else if(dte<=90){
+      cls+=' expire-yellow';
+      badges+=`<span class="badge badge-exp-yellow">剩余${dte}天(黄色告警)</span>`;
+    }
+    if(s.category==='生化'){cls+=' bio-chem';badges+='<span class="badge badge-bio">生化</span>';}
+    badges+=s.location==='冷库'?'<span class="badge badge-cold">冷库</span>':'<span class="badge badge-normal">常温</span>';
+
+    //同档案总库存，判断自定义低库存提醒
+    const arch=archiveMap[s.archiveId];
+    const totalQty=list.filter(x=>x.archiveId===s.archiveId).reduce((sum,x)=>sum+(x.qty||0),0);
+    let lowBadge='';
+    if(arch&&arch.minStock>0&&totalQty<=arch.minStock){
+      cls+=' low-stock';
+      lowBadge=`<span class="badge badge-low">🔔低于预警阈值(${arch.minStock}${arch.minUnit||''})</span>`;
+    }
+
+    const packInfo=s.packUnit&&s.packQty&&s.minUnit
+      ?`（约 ${(s.qty/s.packQty).toFixed(2)}${s.packUnit} = ${s.qty}${s.minUnit}）`
+      :`${s.minUnit||''}`;
+
+    return `<div class="${cls}">
+      <div class="item-title">${s.name||'(未命名)'} ${badges} ${lowBadge}</div>
+      <div class="item-meta">
+        <span>🏭 ${s.factory||'-'}</span>
+        <span>📏 ${s.spec||'-'}</span>
+        <span>🔢批号:${s.batch}</span>
+        <span>📅生产:${s.prodDate||'-'}</span>
+        <span>📅失效:${s.expDate||'-'}</span>
+        <br>
+        <span>📦剩余: <b>${s.qty}</b>${s.minUnit||''} ${packInfo}</span>
+      </div>
+      <div class="item-actions">
+        <button class="btn btn-sm btn-primary" onclick="editStock(${s.id})">编辑</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteStock(${s.id})">删除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function editStock(id){
+  const s=await dbGet('stock',id);
+  if(!s)return;
+  document.getElementById('e-id').value=s.id;
+  document.getElementById('e-name').value=s.name||'';
+  document.getElementById('e-batch').value=s.batch||'';
+  document.getElementById('e-prodDate').value=s.prodDate||'';
+  document.getElementById('e-expDate').value=s.expDate||'';
+  document.getElementById('e-qty').value=s.qty||0;
+  document.getElementById('e-old-qty').value=s.qty||0;
+  document.getElementById('e-location').value=s.location||'常温';
+  document.getElementById('edit-modal').classList.add('show');
+}
+function closeModal(){document.getElementById('edit-modal').classList.remove('show');}
+async function saveStockEdit(){
+  const id=parseInt(document.getElementById('e-id').value);
+  const oldQty=parseFloat(document.getElementById('e-old-qty').value);
+  const s=await dbGet('stock',id);
+  if(!s)return;
+  s.batch=document.getElementById('e-batch').value.trim();
+  s.prodDate=document.getElementById('e-prodDate').value;
+  s.expDate=document.getElementById('e-expDate').value;
+  s.qty=parseFloat(document.getElementById('e-qty').value)||0;
+  s.location=document.getElementById('e-location').value;
+  s.updateTime=new Date().toISOString();
+  await dbPut('stock',s);
+  const diff=s.qty-oldQty;
+  addLog(`盘点更新：${s.name} 批号${s.batch} ${oldQty}→${s.qty}（${diff>0?'+':''}${diff}）`);
+  closeModal();renderStock();updateStats();
+  toast('保存成功','success');
+}
+async function deleteStock(id){
+  const s=await dbGet('stock',id);
+  if(!s)return;
+  if(!confirm(`确定删除「${s.name} 批号${s.batch}」吗？`))return;
+  await dbDelete('stock',id);
+  addLog(`删除库存：${s.name} 批号${s.batch}`);
+  renderStock();updateStats();
+  toast('已删除','success');
+}
+
+async function updateStats(){
+  const stock=await dbGetAll('stock');
+  const archives=await dbGetAll('archive');
+  let expireRed=0,expireYellow=0,bio=0;
+  stock.forEach(s=>{
+    const d=daysToExpire(s.expDate);
+    if(d<=30)expireRed++;
+    else if(d<=90)expireYellow++;
+    if(s.category==='生化')bio++;
+  });
+  document.getElementById('stats-bar').innerHTML=`
+    <div class="stat-card"><div class="stat-num">${archives.length}</div><div class="stat-label">试剂档案</div></div>
+    <div class="stat-card"><div class="stat-num">${stock.length}</div><div class="stat-label">库存条目</div></div>
+    <div class="stat-card bio"><div class="stat-num">${bio}</div><div class="stat-label">生化试剂</div></div>
+    <div class="stat-card danger"><div class="stat-num">${expireRed}</div><div class="stat-label">≤30天红色告警</div></div>
+    <div class="stat-card warn"><div class="stat-num">${expireYellow}</div><div class="stat-label">31‑90天黄色告警</div></div>
+  `;
 }
 
 //扫码
-let stream;
-async function openScan(){
-document.getElementById("scanBox").style.display="block";
-const video=document.getElementById("video");
-stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-video.srcObject=stream;
-tickScan();
+let html5QrCode=null;
+async function startScanner(){
+  document.querySelector('.tab[data-tab="scan"]').click();
+  try{
+    if(!window.Html5Qrcode){toast('扫码库加载失败，请检查网络','error');return;}
+    html5QrCode=new Html5Qrcode("qr-reader");
+    const config={fps:10,qrbox:{width:250,height:150}};
+    await html5QrCode.start({facingMode:"environment"},config,onScanSuccess);
+    document.getElementById('qr-reader-results').textContent='摄像头已开启，请将条码对准扫描框...';
+  }catch(e){
+    document.getElementById('qr-reader-results').textContent='启动失败：'+e.message;
+    toast('摄像头启动失败','error');
+  }
 }
-function closeScan(){
-if(stream)stream.getTracks().forEach(t=>t.stop());
-document.getElementById("scanBox").style.display="none";
-}
-function tickScan(){
-const v=document.getElementById("video");
-if(v.readyState===v.HAVE_ENOUGH_DATA){
-const canvas=document.createElement("canvas");
-canvas.width=v.videoWidth;canvas.height=v.videoHeight;
-const ctx=canvas.getContext("2d");
-ctx.drawImage(v,0,0);
-const res=jsQR(ctx.getImageData(0,0,canvas.width,canvas.height),canvas.width,canvas.height);
-if(res){
-document.getElementById("batch").value=res.data;
-closeScan();
-alert("识别条码："+res.data);
-return;
-}
-}
-requestAnimationFrame(tickScan);
-}
-
-window.onload=async()=>{
-await initDB();
-renderList();
-}
-</script>
-</body>
-</html>
+async function stopScanner(){
+  if(html5QrCode){try{await html5QrCode.stop();}
