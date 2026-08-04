@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="manifest" href="MANIFEST.webmanifest">
 <title>检验科试剂盘点管理系统</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,Microsoft Yahei,sans-serif}
@@ -31,11 +30,12 @@ th{background:#edf2f7}
 .done{color:#2f855a;font-weight:bold}
 small{color:#666;font-size:12px}
 .file-input-wrap{margin:8px 0}
+ul{padding-left:20px}
 </style>
 </head>
 <body>
 <h2>检验科试剂盘点管理系统</h2>
-<small>IndexedDB本地存储｜生化试剂批号比对标记：已比对/未比对｜月度盘存CSV导出｜json备份恢复</small>
+<small>IndexedDB本地存储｜生化试剂比对｜生产日期+失效时间｜下拉选择档案名称分类｜CSV导出｜json备份恢复</small>
 
 <div class="tab-bar">
 <button class="tab active" data-tab="stock">库存管理</button>
@@ -51,22 +51,22 @@ small{color:#666;font-size:12px}
 <h3>新增/编辑试剂库存</h3>
 <div class="row">
 <div class="form-item">
-<label>试剂名称（可自定义输入）</label>
-<input list="reagentNameList" id="stockName" placeholder="输入或选择试剂">
+<label>试剂名称（下拉选择档案已有）</label>
+<input list="reagentNameList" id="stockName" placeholder="下拉选择，也可手动输入新名称">
 <datalist id="reagentNameList"></datalist>
 </div>
 <div class="form-item">
-<label>试剂分类（可自定义）</label>
-<input list="cateList" id="stockCate" placeholder="输入或选择分类">
+<label>试剂分类（下拉选择档案已有）</label>
+<input list="cateList" id="stockCate" placeholder="下拉选择，也可手动输入新分类">
 <datalist id="cateList"></datalist>
 </div>
 <div class="form-item">
 <label>规格</label>
-<input id="stockSpec" placeholder="例如 50ml">
+<input id="stockSpec" placeholder="试剂规格，如：200人份/盒">
 </div>
 <div class="form-item">
 <label>包装说明</label>
-<input id="stockPackage" placeholder="填写包装说明">
+<input id="stockPackage" placeholder="包装，例如：1盒内含4瓶">
 </div>
 </div>
 <div class="row">
@@ -75,8 +75,12 @@ small{color:#666;font-size:12px}
 <input id="stockBatch">
 </div>
 <div class="form-item">
-<label>有效期</label>
-<input type="date" id="stockExp">
+<label>生产日期</label>
+<input type="date" id="stockProdDate">
+</div>
+<div class="form-item">
+<label>失效时间</label>
+<input type="date" id="stockExpDate">
 </div>
 <div class="form-item">
 <label>库存数量</label>
@@ -100,15 +104,15 @@ small{color:#666;font-size:12px}
 </div>
 
 <div class="card">
-<h3>库存列表 <small>红色=临近过期(≤30天)｜绿色=已比对</small></h3>
+<h3>库存列表 <small>红色=临近过期(失效时间≤30天)｜绿色=已比对</small></h3>
 <div id="stockTableWrap"></div>
 </div>
 </div>
 
-<!--生化试剂比对面板-->
+<!--生化试剂比对面板 仅分类严格等于“生化”才显示-->
 <div id="compare" class="panel">
 <div class="card">
-<h3>生化试剂批号比对管理</h3>
+<h3>生化试剂批号比对管理（仅分类=生化）</h3>
 <div class="row">
 <div class="form-item">
 <label>筛选</label>
@@ -128,21 +132,21 @@ small{color:#666;font-size:12px}
 <!--试剂档案面板-->
 <div id="reagentlib" class="panel">
 <div class="card">
-<h3>试剂档案库（自定义试剂/分类）</h3>
-<p>在这里维护常用试剂名称、分类，新增库存时下拉可直接选用</p>
+<h3>试剂档案库</h3>
+<p>维护试剂名称、分类；档案录入后，库存页面下拉框直接选用；分类填写<strong>生化</strong>，才出现在生化比对页面</p>
 <div class="row">
 <div class="form-item">
 <label>新增试剂名称</label>
 <input id="libName">
 </div>
 <div class="form-item">
-<label>新增试剂分类</label>
+<label>新增分类</label>
 <input id="libCate">
 </div>
 </div>
 <div class="row">
-<button class="btn btn-primary" onclick="addReagentLib()">添加试剂档案</button>
-<button class="btn" onclick="addCateLib()">新增分类</button>
+<button class="btn btn-primary" onclick="addReagentLib()">添加试剂名称</button>
+<button class="btn btn-primary" onclick="addCateLib()">添加分类</button>
 </div>
 <div id="libTableWrap"></div>
 </div>
@@ -152,8 +156,8 @@ small{color:#666;font-size:12px}
 <div id="scan" class="panel">
 <div class="card">
 <h3>摄像头扫码盘点</h3>
-<div><video id="video" style="max-width:100%;border:1px solid #aaa"></video></div>
-<p id="scanTip">点击开启摄像头</p>
+<video id="video" autoplay muted playsinline style="max-width:100%;border:1px solid #aaa"></video>
+<p id="scanTip">点击开启扫码；⚠️本地file://文件无法调用摄像头，需要https网页</p>
 <button class="btn btn-primary" onclick="startScan()">开启扫码</button>
 <button class="btn btn-danger" onclick="stopScan()">关闭摄像头</button>
 <div class="row">
@@ -174,7 +178,7 @@ small{color:#666;font-size:12px}
 <div id="export" class="panel">
 <div class="card">
 <h3>月度盘存导出 & 系统备份导入</h3>
-<p>【月度盘存导出CSV】每月盘点使用，下载后直接用Excel打开、打印、做账（包含比对状态列）</p>
+<p>【月度盘存导出CSV】下载后直接用Excel打开打印做账（包含比对状态、生产日期、失效时间）</p>
 <button class="btn btn-primary" onclick="exportInventoryCsv()">📅 月度盘存导出CSV</button>
 
 <p style="margin-top:12px">【系统备份JSON】用于软件数据恢复，不要直接打开编辑</p>
@@ -190,7 +194,7 @@ small{color:#666;font-size:12px}
 
 <script>
 const DB_NAME="ReagentDB";
-const DB_VERSION=1;
+const DB_VERSION=4;
 let db=null;
 const stores={
 stock:"stock",
@@ -212,7 +216,10 @@ req.onerror=e=>rej(e.target.error)
 })
 }
 
-async function initDB(){await openDB();await renderAll()}
+async function initDB(){
+await openDB();
+await renderAll();
+}
 
 async function getAll(storeName){
 return new Promise(res=>{
@@ -221,36 +228,40 @@ const st=tx.objectStore(storeName);
 const arr=[];
 st.openCursor().onsuccess=e=>{
 const cur=e.target.result;
-if(cur){arr.push(cur.value);cur.continue()}else res(arr)
+if(cur){arr.push(cur.value);cur.continue();}else res(arr);
 }
-})
-}
-async function add(storeName,obj){
-return new Promise((res)=>{
-const tx=db.transaction(storeName,"readwrite");
-tx.objectStore(storeName).add(obj).onsuccess=e=>res(e.target.result)
-})
-}
-async function put(storeName,obj){
-return new Promise(res=>{
-const tx=db.transaction(storeName,"readwrite");
-tx.objectStore(storeName).put(obj).onsuccess=e=>res(e.target.result)
-})
-}
-async function del(storeName,id){
-return new Promise(res=>{
-const tx=db.transaction(storeName,"readwrite");
-tx.objectStore(storeName).delete(id).onsuccess=e=>res()
 })
 }
 
-document.querySelectorAll(".tab").forEach(t=>{
-t.onclick=()=>{
+async function add(storeName,obj){
+return new Promise((resolve)=>{
+const tx=db.transaction(storeName,"readwrite");
+tx.objectStore(storeName).add(obj).onsuccess=e=>resolve(e.target.result);
+})
+}
+
+async function put(storeName,obj){
+return new Promise(resolve=>{
+const tx=db.transaction(storeName,"readwrite");
+tx.objectStore(storeName).put(obj).onsuccess=e=>resolve(e.target.result);
+})
+}
+
+async function del(storeName,id){
+return new Promise(resolve=>{
+const tx=db.transaction(storeName,"readwrite");
+tx.objectStore(storeName).delete(id).onsuccess=()=>resolve();
+})
+}
+
+//标签页切换
+document.querySelectorAll(".tab").forEach(tab=>{
+tab.onclick=function(){
 document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
 document.querySelectorAll(".panel").forEach(x=>x.classList.remove("show"));
-t.classList.add("active");
-document.getElementById(t.dataset.tab).classList.add("show")
-if(t.dataset.tab==="compare") renderCompareTable();
+this.classList.add("active");
+document.getElementById(this.dataset.tab).classList.add("show");
+if(this.dataset.tab==="compare") renderCompareTable();
 }
 })
 
@@ -260,70 +271,97 @@ await renderLib();
 await fillDatalist();
 }
 
+//填充下拉列表：试剂档案的名称、分类全部加载到datalist，库存页面可以下拉选择
 async function fillDatalist(){
 const nameList=await getAll(stores.reagentLib);
 const cateList=await getAll(stores.cateLib);
 const nameDom=document.getElementById("reagentNameList");
 const cateDom=document.getElementById("cateList");
-nameDom.innerHTML="";cateDom.innerHTML="";
-nameList.forEach(n=>{const opt=document.createElement("option");opt.value=n.name;nameDom.appendChild(opt)})
-cateList.forEach(c=>{const opt=document.createElement("option");opt.value=c.name;cateDom.appendChild(opt)})
+nameDom.innerHTML="";
+cateDom.innerHTML="";
+nameList.forEach(n=>{
+const opt=document.createElement("option");opt.value=n.name;nameDom.appendChild(opt);
+})
+cateList.forEach(c=>{
+const opt=document.createElement("option");opt.value=c.name;cateDom.appendChild(opt);
+})
 }
 
-async function saveStock(){
+//保存库存
+window.saveStock=async function(){
 const name=document.getElementById("stockName").value.trim();
 const cate=document.getElementById("stockCate").value.trim();
 const spec=document.getElementById("stockSpec").value.trim();
 const pack=document.getElementById("stockPackage").value.trim();
 const batch=document.getElementById("stockBatch").value.trim();
-const exp=document.getElementById("stockExp").value;
+const prodDate=document.getElementById("stockProdDate").value;
+const expDate=document.getElementById("stockExpDate").value;
 const num=Number(document.getElementById("stockNum").value||0);
 const sup=document.getElementById("stockSup").value.trim();
 const remark=document.getElementById("stockRemark").value.trim();
-if(!name){alert("试剂名称不能为空");return}
+if(!name){alert("试剂名称不能为空");return;}
+
 const allNames=await getAll(stores.reagentLib);
 const allCates=await getAll(stores.cateLib);
 if(!allNames.find(x=>x.name===name)) await add(stores.reagentLib,{name});
 if(!allCates.find(x=>x.name===cate)) await add(stores.cateLib,{name});
-//新建默认：未比对
-await add(stores.stock,{name,cate,spec,packageDesc:pack,batch,exp,num,sup,remark,compareStatus:"未比对",createTime:new Date().toISOString()});
+
+await add(stores.stock,{
+name,cate,spec,packageDesc:pack,batch,prodDate,expDate,num,sup,remark,
+compareStatus:"未比对",createTime:new Date().toISOString()
+});
 clearStockForm();
 await renderAll();
-alert("保存成功")
+alert("✅保存库存成功");
 }
+
 function clearStockForm(){
 document.getElementById("stockName").value="";
 document.getElementById("stockCate").value="";
 document.getElementById("stockSpec").value="";
 document.getElementById("stockPackage").value="";
 document.getElementById("stockBatch").value="";
-document.getElementById("stockExp").value="";
+document.getElementById("stockProdDate").value="";
+document.getElementById("stockExpDate").value="";
 document.getElementById("stockNum").value=1;
 document.getElementById("stockSup").value="";
 document.getElementById("stockRemark").value="";
 }
 
-async function toggleCompareStatus(id){
+//切换比对状态
+window.toggleCompareStatus=async function(id){
 const all=await getAll(stores.stock);
 const item=all.find(d=>d.id===id);
-if(!item)return;
+if(!item) return;
 item.compareStatus=item.compareStatus==="已比对"?"未比对":"已比对";
 await put(stores.stock,item);
 await renderAll();
 }
 
+//删除库存记录【修复】
+window.delStock=async function(id){
+if(!confirm("确定删除这条库存记录？此操作不可恢复！")) return;
+await del(stores.stock,id);
+await renderAll();
+}
+
+//渲染库存表格
 async function renderStock(){
 const list=await getAll(stores.stock);
 const wrap=document.getElementById("stockTableWrap");
-if(!list.length){wrap.innerHTML="<p>暂无库存数据</p>";return}
-let html=`<table><tr><th>试剂名称</th><th>分类</th><th>规格</th><th>包装说明</th><th>批号</th><th>有效期</th><th>数量</th><th>供应商</th><th>比对状态</th><th>备注</th><th>操作</th></tr>`;
+if(!list.length){wrap.innerHTML="<p>暂无库存数据</p>";return;}
+let html=`<table>
+<tr>
+<th>试剂名称</th><th>分类</th><th>规格</th><th>包装说明</th><th>批号</th>
+<th>生产日期</th><th>失效时间</th><th>数量</th><th>供应商</th><th>比对状态</th><th>备注</th><th>操作</th>
+</tr>`;
 const now=new Date();
 list.forEach(item=>{
 let cls="";
-if(item.exp){
-const expD=new Date(item.exp);
+if(item.expDate){
+const expD=new Date(item.expDate);
 const diff=(expD.getTime()-now.getTime())/(1000*3600*24);
-if(diff<=30)cls="warn";
+if(diff<=30) cls="warn";
 }
 let statusCls=item.compareStatus==="已比对"?"done":"";
 html+=`<tr class="${cls}">
@@ -332,7 +370,8 @@ html+=`<tr class="${cls}">
 <td>${item.spec||""}</td>
 <td>${item.packageDesc||""}</td>
 <td>${item.batch||""}</td>
-<td>${item.exp||""}</td>
+<td>${item.prodDate||""}</td>
+<td>${item.expDate||""}</td>
 <td>${item.num}</td>
 <td>${item.sup||""}</td>
 <td class="${statusCls}">${item.compareStatus||"未比对"}</td>
@@ -346,27 +385,27 @@ html+=`<tr class="${cls}">
 html+="</table>";
 wrap.innerHTML=html;
 }
-window.delStock=async function(id){if(!confirm("确定删除？"))return;await del(stores.stock,id);await renderAll()}
-window.toggleCompareStatus=toggleCompareStatus;
 
-//====生化试剂比对页面，只筛选分类包含生化的记录====
+//生化比对页面：严格等于“生化”分类
 async function renderCompareTable(){
 const filter=document.getElementById("compareFilter").value;
 const all=await getAll(stores.stock);
-//筛选：分类含有“生化”
-let list=all.filter(r=> (r.cate||"").includes("生化"));
+let list=all.filter(r=> (r.cate||"") === "生化");
 if(filter==="yes") list=list.filter(x=>x.compareStatus==="已比对");
 if(filter==="no") list=list.filter(x=>x.compareStatus==="未比对");
 const wrap=document.getElementById("compareWrap");
-if(!list.length){wrap.innerHTML="<p>暂无生化试剂数据</p>";return;}
-let html=`<table><tr><th>试剂名称</th><th>分类</th><th>批号</th><th>有效期</th><th>数量</th><th>比对状态</th><th>操作</th></tr>`;
+if(!list.length){wrap.innerHTML="<p>暂无【生化】分类试剂，请先录入分类为生化的试剂库存</p>";return;}
+let html=`<table><tr>
+<th>试剂名称</th><th>分类</th><th>批号</th><th>生产日期</th><th>失效时间</th><th>数量</th><th>比对状态</th><th>操作</th>
+</tr>`;
 list.forEach(item=>{
 let statusCls=item.compareStatus==="已比对"?"done":"";
 html+=`<tr>
 <td>${item.name||""}</td>
 <td>${item.cate||""}</td>
 <td>${item.batch||""}</td>
-<td>${item.exp||""}</td>
+<td>${item.prodDate||""}</td>
+<td>${item.expDate||""}</td>
 <td>${item.num}</td>
 <td class="${statusCls}">${item.compareStatus}</td>
 <td><button class="btn btn-success" onclick="toggleCompareStatus(${item.id})">切换比对状态</button></td>
@@ -376,13 +415,14 @@ html+="</table>";
 wrap.innerHTML=html;
 }
 
+//导出生化比对csv
 async function exportCompareCsv(){
 const filter=document.getElementById("compareFilter").value;
 const all=await getAll(stores.stock);
-let list=all.filter(r=> (r.cate||"").includes("生化"));
+let list=all.filter(r=> (r.cate||"") === "生化");
 if(filter==="yes") list=list.filter(x=>x.compareStatus==="已比对");
 if(filter==="no") list=list.filter(x=>x.compareStatus==="未比对");
-const header=["试剂名称","分类","批号","有效期","库存数量","比对状态"];
+const header=["试剂名称","分类","批号","生产日期","失效时间","库存数量","比对状态"];
 const lines=[];
 lines.push(header.join(","));
 list.forEach(item=>{
@@ -390,7 +430,8 @@ const row=[
 `"${(item.name||"").replace(/"/g,'""')}"`,
 `"${(item.cate||"").replace(/"/g,'""')}"`,
 `"${(item.batch||"").replace(/"/g,'""')}"`,
-`"${item.exp||""}"`,
+`"${item.prodDate||""}"`,
+`"${item.expDate||""}"`,
 item.num,
 `"${item.compareStatus||"未比对"}"`
 ];
@@ -407,57 +448,75 @@ a.click();
 URL.revokeObjectURL(a.href);
 }
 
-async function addReagentLib(){
+//试剂档案
+window.addReagentLib=async function(){
 const n=document.getElementById("libName").value.trim();
-if(!n)return alert("输入试剂名称");
+if(!n){alert("请输入试剂名称");return;}
 await add(stores.reagentLib,{name:n});
 document.getElementById("libName").value="";
 await renderAll();
 }
-async function addCateLib(){
+
+window.addCateLib=async function(){
 const c=document.getElementById("libCate").value.trim();
-if(!c)return alert("输入分类名称");
+if(!c){alert("请输入分类名称");return;}
 await add(stores.cateLib,{name:c});
 document.getElementById("libCate").value="";
 await renderAll();
 }
+
+window.delLibItem=async function(store,id){
+if(!confirm("确定删除档案？")) return;
+await del(store,id);
+await renderAll();
+}
+
 async function renderLib(){
 const names=await getAll(stores.reagentLib);
 const cates=await getAll(stores.cateLib);
 const wrap=document.getElementById("libTableWrap");
 let html="<div class='row'><div style='flex:1'><h4>已保存试剂名称</h4><ul>";
-names.forEach(x=>html+=`<li>${x.name} <button onclick='delLibItem("reagentLib",${x.id})'>删除</button></li>`);
+names.forEach(x=>html+=`<li>${x.name} <button class="btn" onclick='delLibItem("reagentLib",${x.id})'>删除</button></li>`);
 html+="</ul></div><div style='flex:1'><h4>已保存分类</h4><ul>";
-cates.forEach(x=>html+=`<li>${x.name} <button onclick='delLibItem("cateLib",${x.id})'>删除</button></li>`);
+cates.forEach(x=>html+=`<li>${x.name} <button class="btn" onclick='delLibItem("cateLib",${x.id})'>删除</button></li>`);
 html+="</ul></div></div>";
 wrap.innerHTML=html;
 }
-window.delLibItem=async function(store,id){
-if(!confirm("删除？"))return;await del(store,id);await renderAll();
-}
 
+//摄像头
 let mediaStream=null;
-async function startScan(){
+window.startScan=async function(){
 try{
+if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+alert("当前浏览器不支持摄像头，请使用Chrome，部署在HTTPS");return;
+}
 const video=document.getElementById("video");
 mediaStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
 video.srcObject=mediaStream;
-document.getElementById("scanTip").innerText="摄像头已开启";
-}catch(e){alert("无法打开摄像头："+e.message)}
+document.getElementById("scanTip").innerText="✅摄像头已开启，请扫码";
+}catch(e){
+console.error(e);
+if(e.name==="NotAllowedError") alert("❌摄像头权限被拒绝；本地file://打开文件浏览器禁止摄像头，需要HTTPS网页");
+else alert("❌开启失败："+e.message);
 }
-function stopScan(){
-if(mediaStream) mediaStream.getTracks().forEach(t=>t.stop());
-document.getElementById("scanTip").innerText="摄像头已关闭";
-}
-function saveScanRecord(){
-const res=document.getElementById("scanResult").value;
-const cnt=Number(document.getElementById("scanCount").value);
-alert(`盘点条码:${res},数量${cnt}，如需入库复制到库存表单`);
 }
 
+window.stopScan=function(){
+if(mediaStream) mediaStream.getTracks().forEach(t=>t.stop());
+document.getElementById("video").srcObject=null;
+document.getElementById("scanTip").innerText="摄像头已关闭";
+}
+
+window.saveScanRecord=function(){
+const res=document.getElementById("scanResult").value;
+const cnt=Number(document.getElementById("scanCount").value);
+alert(`盘点条码:${res},数量${cnt}，复制内容填写到库存表单`);
+}
+
+//导出月度盘存
 async function exportInventoryCsv(){
 const list=await getAll(stores.stock);
-const header=["试剂名称","分类","规格","包装说明","批号","有效期","库存数量","供应商","比对状态","备注"];
+const header=["试剂名称","分类","规格","包装说明","批号","生产日期","失效时间","库存数量","供应商","比对状态","备注"];
 const lines=[];
 lines.push(header.join(","));
 list.forEach(item=>{
@@ -467,7 +526,8 @@ const row=[
 `"${(item.spec||"").replace(/"/g,'""')}"`,
 `"${(item.packageDesc||"").replace(/"/g,'""')}"`,
 `"${(item.batch||"").replace(/"/g,'""')}"`,
-`"${item.exp||""}"`,
+`"${item.prodDate||""}"`,
+`"${item.expDate||""}"`,
 item.num,
 `"${(item.sup||"").replace(/"/g,'""')}"`,
 `"${item.compareStatus||"未比对"}"`,
@@ -486,6 +546,7 @@ a.click();
 URL.revokeObjectURL(a.href);
 }
 
+//导出备份
 async function exportData(){
 const stock=await getAll(stores.stock);
 const rlib=await getAll(stores.reagentLib);
@@ -499,9 +560,10 @@ a.click();
 URL.revokeObjectURL(a.href);
 }
 
-async function importData(){
+//导入备份
+window.importData=async function(){
 const file=document.getElementById("importFile").files[0];
-if(!file)return alert("请选择备份json文件");
+if(!file){alert("请选择备份json文件");return;}
 const text=await file.text();
 const json=JSON.parse(text);
 const tx=db.transaction([stores.stock,stores.reagentLib,stores.cateLib],"readwrite");
@@ -513,10 +575,10 @@ for(const s of json.stock) await add(stores.stock,s);
 for(const r of json.reagentLib) await add(stores.reagentLib,r);
 for(const c of json.cateLib) await add(stores.cateLib,c);
 await renderAll();
-alert("导入完成");
+alert("✅导入完成");
 }
 
-window.onload=async()=>{
+window.onload=async function(){
 await initDB();
 }
 </script>
