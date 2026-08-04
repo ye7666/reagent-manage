@@ -36,8 +36,8 @@ table{min-width:980px;width:100%;border-collapse:collapse;font-size:13px;margin-
 th,td{border:1px solid #ddd;padding:8px;text-align:left}
 th{background:#edf2f7}
 .warn{color:#c53030;font-weight:bold}
-.done{background‑color:#2f855a;color:#ffffff;font-weight:bold;padding:4px 6px;border‑radius:4px}
-.wait{background‑color:#c53030;color:#ffffff;font-weight:bold;padding:4px 6px;border‑radius:4px}
+.done{background-color:#2f855a;color:#ffffff;font-weight:bold;padding:4px 6px;border-radius:4px}
+.wait{background-color:#c53030;color:#ffffff;font-weight:bold;padding:4px 6px;border-radius:4px}
 .qty-cell{cursor:pointer;color:#2b6cb0;text-decoration:underline}
 /*编辑选中行高亮*/
 tr.edit-selected{background:#e6f0ff !important;}
@@ -415,7 +415,7 @@ compareStatus:"未比对",createTime:new Date().toISOString()
 });
 alert("✅保存库存成功");
 }
-clearStockForm();
+// 【修复】保存表单不会触发清空弹窗，删掉此处clearStockForm();
 await renderAll();
 }
 
@@ -475,11 +475,13 @@ await put(stores.stock,item);
 await renderAll();
 }
 
-// 修复：切换完成强制刷新比对页面列表，解决点击无响应
+// 切换比对‑状态
 window.toggleCompareStatus=async function(id){
 const all=await getAll(stores.stock);
 const item=all.find(d=>d.id===id);
 if(!item) return;
+//兜底防止状态为空
+if(!item.compareStatus) item.compareStatus="未比对";
 const targetNew=item.compareStatus==="已比对"?"未比对":"已比对";
 const ok=confirm(`确定标记为【${targetNew}】吗？`);
 if(!ok){
@@ -516,7 +518,9 @@ const diff=(expD.getTime()-now.getTime())/(1000*3600*24);
 if(diff<=30) cls="warn";
 }
 if(currentEditRowId===item.id) cls+=" edit-selected";
-let statusClass=item.compareStatus==="已比对"?"done":"wait";
+//兜底状态
+let statusText=item.compareStatus||"未比对";
+let statusClass=statusText==="已比对"?"done":"wait";
 html+=`<tr class="${cls.trim()}">
 <td>${item.name||""}</td>
 <td>${item.cate||""}</td>
@@ -528,7 +532,7 @@ html+=`<tr class="${cls.trim()}">
 <td class="qty-cell" onclick="quickEditQty(${item.id})" title="点击修改数量">${item.num}</td>
 <td>${item.sup||""}</td>
 <td>${item.position||"常温"}</td>
-<td><span class="${statusClass}">${item.compareStatus||"未比对"}</span></td>
+<td><span class="${statusClass}">${statusText}</span></td>
 <td>${item.remark||""}</td>
 <td>
 <button class="btn btn-warn" onclick="editStock(${item.id})">编辑</button>
@@ -552,7 +556,9 @@ let html=`<table><tr>
 <th>试剂名称</th><th>分类</th><th>批号</th><th>生产日期</th><th>失效时间</th><th>数量</th><th>比对状态</th><th>操作</th>
 </tr>`;
 list.forEach(item=>{
-let statusClass=item.compareStatus==="已比对"?"done":"wait";
+//兜底空状态
+let statusText=item.compareStatus||"未比对";
+let statusClass=statusText==="已比对"?"done":"wait";
 html+=`<tr>
 <td>${item.name||""}</td>
 <td>${item.cate||""}</td>
@@ -560,7 +566,7 @@ html+=`<tr>
 <td>${item.prodDate||""}</td>
 <td>${item.expDate||""}</td>
 <td>${item.num}</td>
-<td><span class="${statusClass}">${item.compareStatus}</span></td>
+<td><span class="${statusClass}">${statusText}</span></td>
 <td><button class="btn btn-success" onclick="toggleCompareStatus(${item.id})">切换比对状态</button></td>
 </tr>`
 })
