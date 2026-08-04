@@ -17,10 +17,14 @@ body{padding:12px;background:#f5f7fa;color:#222;max-width:1200px;margin:0 auto}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
 .form-item{display:flex;flex-direction:column;min-width:180px;flex:1}
 label{font-size:13px;margin:4px 0;font-weight:500}
-input,select,textarea{padding:10px 12px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px}
-/*优化下拉输入框，视觉更明显*/
-input[list]{border:2px solid #94b8e8;background:#f8fbff}
-input[readonly]{background:#eeeeee;color:#666;cursor:not-allowed}
+/*输入框+下拉按钮容器*/
+.input-wrap{display:flex;gap:6px;position:relative}
+input,select,textarea{padding:10px 12px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px;flex‑grow:1}
+.menu-btn{width:42px;border:1px solid #cbd5e0;background:#2b6cb0;color:#fff;border-radius:6px;cursor:pointer;font-size:18px}
+/*自定义下拉弹窗*/
+.drop‑menu{position:absolute;top:44px;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:6px;max‑height:240px;overflow‑y:auto;z‑index:999;display:none}
+.drop‑item{padding:9px 12px;cursor:pointer;border‑bottom:1px solid #eee}
+.drop‑item:hover{background:#edf2f7}
 textarea{min-height:70px}
 .btn{padding:8px 12px;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin:2px}
 .btn-primary{background:#2b6cb0;color:#fff}
@@ -66,24 +70,36 @@ ul{padding-left:20px}
 <input type="hidden" id="editStockId" value="">
 <div class="row">
 <div class="form-item">
-<label>试剂名称（下拉选择档案📋）</label>
-<input list="reagentNameList" id="stockName" placeholder="🔽下拉选择，也可手动输入">
-<datalist id="reagentNameList"></datalist>
+<label>试剂名称（点击☰按钮选择档案📋）</label>
+<div class="input-wrap">
+<input id="stockName" placeholder="可手动输入">
+<button class="menu-btn" data‑store="reagentLib">☰</button>
+<div class="drop‑menu"></div>
+</div>
 </div>
 <div class="form-item">
-<label>试剂分类（下拉选择档案📋）</label>
-<input list="cateList" id="stockCate" placeholder="🔽下拉选择，也可手动输入">
-<datalist id="cateList"></datalist>
+<label>试剂分类（点击☰按钮选择档案📋）</label>
+<div class="input-wrap">
+<input id="stockCate" placeholder="可手动输入">
+<button class="menu-btn" data‑store="cateLib">☰</button>
+<div class="drop‑menu"></div>
+</div>
 </div>
 <div class="form-item">
-<label>规格（下拉选择档案📋）</label>
-<input list="specList" id="stockSpec" placeholder="🔽下拉选择，也可手动输入">
-<datalist id="specList"></datalist>
+<label>规格（点击☰按钮选择档案📋）</label>
+<div class="input-wrap">
+<input id="stockSpec" placeholder="可手动输入">
+<button class="menu-btn" data‑store="specLib">☰</button>
+<div class="drop‑menu"></div>
+</div>
 </div>
 <div class="form-item">
-<label>包装说明（下拉选择档案📋）</label>
-<input list="packageList" id="stockPackage" placeholder="🔽下拉选择，也可手动输入">
-<datalist id="packageList"></datalist>
+<label>包装说明（点击☰按钮选择档案📋）</label>
+<div class="input-wrap">
+<input id="stockPackage" placeholder="可手动输入">
+<button class="menu-btn" data‑store="packageLib">☰</button>
+<div class="drop‑menu"></div>
+</div>
 </div>
 </div>
 <div class="row">
@@ -104,9 +120,12 @@ ul{padding-left:20px}
 <input type="number" id="stockNum" value="1">
 </div>
 <div class="form-item">
-<label>供应商（下拉选择档案📋）</label>
-<input list="supList" id="stockSup" placeholder="🔽下拉选择，也可手动输入">
-<datalist id="supList"></datalist>
+<label>供应商（点击☰按钮选择档案📋）</label>
+<div class="input-wrap">
+<input id="stockSup" placeholder="可手动输入">
+<button class="menu-btn" data‑store="supLib">☰</button>
+<div class="drop‑menu"></div>
+</div>
 </div>
 <div class="form-item">
 <label>储存位置</label>
@@ -159,7 +178,7 @@ ul{padding-left:20px}
 <div id="reagentlib" class="panel">
 <div class="card">
 <h3>试剂档案库（维护下拉候选数据）</h3>
-<p>在此录入常用【名称、分类、规格、包装、供应商】；库存页面直接下拉选用；分类填写<strong>生化</strong>，才出现在生化比对页面</p>
+<p>在此录入常用【名称、分类、规格、包装、供应商】；库存页面点击☰按钮选用；分类填写<strong>生化</strong>，才出现在生化比对页面</p>
 
 <div class="row">
 <div class="form-item">
@@ -289,6 +308,41 @@ tx.objectStore(storeName).delete(id).onsuccess=()=>resolve();
 })
 }
 
+//关闭全部自定义下拉菜单
+function closeAllDropdown(){
+document.querySelectorAll(".drop‑menu").forEach(menu=>menu.style.display="none")
+}
+//三横线☰下拉按钮点击事件
+document.querySelectorAll(".menu-btn").forEach(btn=>{
+btn.onclick=async function(e){
+e.stopPropagation();
+closeAllDropdown();
+const storeKey=this.dataset.store;
+const menuDom=this.nextElementSibling;
+const inputDom=this.previousElementSibling;
+const listData=await getAll(stores[storeKey]);
+menuDom.innerHTML="";
+if(listData.length===0){
+menuDom.innerHTML=`<div class="drop‑item">暂无档案数据</div>`;
+menuDom.style.display="block";
+return;
+}
+listData.forEach(item=>{
+const li=document.createElement("div");
+li.className="drop‑item";
+li.innerText=item.name;
+li.onclick=()=>{
+inputDom.value=item.name;
+menuDom.style.display="none";
+}
+menuDom.appendChild(li);
+})
+menuDom.style.display="block";
+}
+})
+//点击页面空白关闭下拉
+document.onclick=()=>closeAllDropdown();
+
 //标签页切换
 document.querySelectorAll(".tab").forEach(tab=>{
 tab.onclick=function(){
@@ -303,34 +357,6 @@ if(this.dataset.tab==="compare") renderCompareTable();
 async function renderAll(){
 await renderStock();
 await renderLib();
-await fillDatalist();
-}
-
-//填充全部下拉datalist：名称、分类、规格、包装、供应商
-async function fillDatalist(){
-const nameList=await getAll(stores.reagentLib);
-const cateList=await getAll(stores.cateLib);
-const specList=await getAll(stores.specLib);
-const pkgList=await getAll(stores.packageLib);
-const supList=await getAll(stores.supLib);
-
-const nameDom=document.getElementById("reagentNameList");
-const cateDom=document.getElementById("cateList");
-const specDom=document.getElementById("specList");
-const pkgDom=document.getElementById("packageList");
-const supDom=document.getElementById("supList");
-
-nameDom.innerHTML="";
-cateDom.innerHTML="";
-specDom.innerHTML="";
-pkgDom.innerHTML="";
-supDom.innerHTML="";
-
-nameList.forEach(n=>{const opt=document.createElement("option");opt.value=n.name;nameDom.appendChild(opt);})
-cateList.forEach(c=>{const opt=document.createElement("option");opt.value=c.name;cateDom.appendChild(opt);})
-specList.forEach(s=>{const opt=document.createElement("option");opt.value=s.name;specDom.appendChild(opt);})
-pkgList.forEach(p=>{const opt=document.createElement("option");opt.value=p.name;pkgDom.appendChild(opt);})
-supList.forEach(s=>{const opt=document.createElement("option");opt.value=s.name;supDom.appendChild(opt);})
 }
 
 //取消编辑
@@ -415,8 +441,6 @@ document.getElementById("stockPosition").value="常温";
 document.getElementById("editStockId").value="";
 document.getElementById("editTip").style.display="none";
 document.getElementById("editIdText").innerText="";
-document.getElementById("stockName").removeAttribute("readonly");
-document.getElementById("stockCate").removeAttribute("readonly");
 }
 }
 
@@ -432,9 +456,6 @@ document.getElementById("editIdText").innerText=item.id;
 
 document.getElementById("stockName").value=item.name||"";
 document.getElementById("stockCate").value=item.cate||"";
-document.getElementById("stockName").setAttribute("readonly","readonly");
-document.getElementById("stockCate").setAttribute("readonly","readonly");
-
 document.getElementById("stockSpec").value=item.spec||"";
 document.getElementById("stockPackage").value=item.packageDesc||"";
 document.getElementById("stockBatch").value=item.batch||"";
