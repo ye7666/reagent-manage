@@ -49,6 +49,8 @@ ul{padding-left:20px}
 .lib-block{border:1px solid #dee2e6;padding:10px;border-radius:8px}
 .lib-block h4{margin-bottom:8px;font-size:14px;color:#2b6cb0}
 .lib-block li{margin:3px 0;display:flex;justify-content:space-between;align-items:center}
+.search-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+#batchSearch{max-width:320px}
 </style>
 </head>
 <body>
@@ -149,7 +151,12 @@ ul{padding-left:20px}
 </div>
 
 <div class="card">
-<h3>库存列表 <small>红色=临近过期(失效时间≤30天)｜绿色=已比对｜点击数量可快速修改<br>💡比对状态修改请到【生化试剂比对】标签页操作</small></h3>
+<h3>库存列表 <small>红色=临近过期(失效时间≤30天)｜绿色=已比对｜点击数量可快速修改<br>💡比对状态修改请到【生化试剂比对】标签页操作</small>
+<div class="search-row">
+<input id="batchSearch" placeholder="输入批号搜索，快速筛选对应批号试剂">
+<button class="btn btn-primary" onclick="searchBatch()">批号检索</button>
+<button class="btn" onclick="resetSearch()">重置列表</button>
+</div>
 <div class="table-wrap" id="stockTableWrap"></div>
 </div>
 </div>
@@ -244,6 +251,7 @@ const DB_NAME="ReagentDB";
 const DB_VERSION=11;
 let db=null;
 let currentEditRowId=null;
+let searchBatchKey = "";
 const stores={
 stock:"stock",
 reagentLib:"reagentLib",
@@ -415,7 +423,6 @@ compareStatus:"未比对",createTime:new Date().toISOString()
 });
 alert("✅保存库存成功");
 }
-// 【修复】保存表单不会触发清空弹窗，删掉此处clearStockForm();
 await renderAll();
 }
 
@@ -500,8 +507,23 @@ await del(stores.stock,id);
 await renderAll();
 }
 
+//批号搜索
+window.searchBatch=async function(){
+searchBatchKey=document.getElementById("batchSearch").value.trim().toLowerCase();
+await renderStock();
+}
+window.resetSearch=async function(){
+searchBatchKey="";
+document.getElementById("batchSearch").value="";
+await renderStock();
+}
+
 async function renderStock(){
-const list=await getAll(stores.stock);
+let list=await getAll(stores.stock);
+//批号筛选逻辑
+if(searchBatchKey!==''){
+list=list.filter(i=> (i.batch||"").toLowerCase().includes(searchBatchKey))
+}
 const wrap=document.getElementById("stockTableWrap");
 if(!list.length){wrap.innerHTML="<p>暂无库存数据</p>";return;}
 let html=`<table>
@@ -518,9 +540,14 @@ const diff=(expD.getTime()-now.getTime())/(1000*3600*24);
 if(diff<=30) cls="warn";
 }
 if(currentEditRowId===item.id) cls+=" edit-selected";
-//兜底状态
+//只有生化分类才展示比对状态，其余空白
+let statusHtml = '';
+if((item.cate||"") === "生化"){
 let statusText=item.compareStatus||"未比对";
 let statusClass=statusText==="已比对"?"done":"wait";
+statusHtml=`<span class="${statusClass}">${statusText}</span>`;
+}
+
 html+=`<tr class="${cls.trim()}">
 <td>${item.name||""}</td>
 <td>${item.cate||""}</td>
@@ -532,7 +559,7 @@ html+=`<tr class="${cls.trim()}">
 <td class="qty-cell" onclick="quickEditQty(${item.id})" title="点击修改数量">${item.num}</td>
 <td>${item.sup||""}</td>
 <td>${item.position||"常温"}</td>
-<td><span class="${statusClass}">${statusText}</span></td>
+<td>${statusHtml}</td>
 <td>${item.remark||""}</td>
 <td>
 <button class="btn btn-warn" onclick="editStock(${item.id})">编辑</button>
