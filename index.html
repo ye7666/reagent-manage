@@ -16,29 +16,40 @@ body{padding:12px;background:#f5f7fa;color:#222;max-width:1200px;margin:0 auto}
 .card{background:#fff;padding:16px;border-radius:10px;margin-bottom:14px;box-shadow:0 1px 3px #00000018}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
 .form-item{display:flex;flex-direction:column;min-width:180px;flex:1}
-label{font-size:13px;margin:4px 0}
-input,select,textarea{padding:9px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px}
+label{font-size:13px;margin:4px 0;font-weight:500}
+input,select,textarea{padding:10px 12px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px}
+/*优化下拉输入框，视觉更明显*/
+input[list]{border:2px solid #94b8e8;background:#f8fbff}
+input[readonly]{background:#eeeeee;color:#666;cursor:not-allowed}
 textarea{min-height:70px}
-.btn{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin:2px}
+.btn{padding:8px 12px;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin:2px}
 .btn-primary{background:#2b6cb0;color:#fff}
 .btn-warn{background:#dd6b20;color:#fff}
 .btn-danger{background:#c53030;color:#fff}
 .btn-success{background:#2f855a;color:#fff}
-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+/*手机表格横向滚动*/
+.table-wrap{overflow-x:auto;width:100%}
+table{min-width:980px;width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
 th,td{border:1px solid #ddd;padding:8px;text-align:left}
 th{background:#edf2f7}
 .warn{color:#c53030;font-weight:bold}
 .done{color:#2f855a;font-weight:bold}
 .qty-cell{cursor:pointer;color:#2b6cb0;text-decoration:underline}
+/*编辑选中行高亮*/
+tr.edit-selected{background:#e6f0ff !important;}
 small{color:#666;font-size:12px}
 .file-input-wrap{margin:8px 0}
 ul{padding-left:20px}
-.edit-tip{color:#dd6b20;font-size:12px;margin:4px 0;display:none}
+.edit-tip{color:#dd6b20;font-size:13px;margin:4px 0;display:none;font-weight:bold}
+.lib-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:10px}
+.lib-block{border:1px solid #dee2e6;padding:10px;border-radius:8px}
+.lib-block h4{margin-bottom:8px;font-size:14px;color:#2b6cb0}
+.lib-block li{margin:3px 0;display:flex;justify-content:space-between;align-items:center}
 </style>
 </head>
 <body>
 <h2>检验科试剂盘点管理系统</h2>
-<small>IndexedDB本地存储｜生化试剂比对｜可编辑库存｜Excel批量导入｜下拉选择档案名称分类｜CSV导出｜json备份恢复</small>
+<small>IndexedDB本地存储｜生化试剂比对｜完整档案库｜Excel批量导入｜CSV导出｜json备份恢复</small>
 
 <div class="tab-bar">
 <button class="tab active" data-tab="stock">库存管理</button>
@@ -51,26 +62,28 @@ ul{padding-left:20px}
 <div id="stock" class="panel show">
 <div class="card">
 <h3>新增/编辑试剂库存</h3>
-<div class="edit-tip" id="editTip">🔴正在编辑已有库存记录 ID:<span id="editIdText"></span></div>
+<div class="edit-tip" id="editTip">🔴正在编辑已有库存记录 ID:<span id="editIdText"></span>（名称、分类不可修改）</div>
 <input type="hidden" id="editStockId" value="">
 <div class="row">
 <div class="form-item">
-<label>试剂名称（下拉选择档案已有）</label>
-<input list="reagentNameList" id="stockName" placeholder="下拉选择，也可手动输入新名称">
+<label>试剂名称（下拉选择档案📋）</label>
+<input list="reagentNameList" id="stockName" placeholder="🔽下拉选择，也可手动输入">
 <datalist id="reagentNameList"></datalist>
 </div>
 <div class="form-item">
-<label>试剂分类（下拉选择档案已有）</label>
-<input list="cateList" id="stockCate" placeholder="下拉选择，也可手动输入新分类">
+<label>试剂分类（下拉选择档案📋）</label>
+<input list="cateList" id="stockCate" placeholder="🔽下拉选择，也可手动输入">
 <datalist id="cateList"></datalist>
 </div>
 <div class="form-item">
-<label>规格</label>
-<input id="stockSpec" placeholder="试剂规格，如：200人份/盒">
+<label>规格（下拉选择档案📋）</label>
+<input list="specList" id="stockSpec" placeholder="🔽下拉选择，也可手动输入">
+<datalist id="specList"></datalist>
 </div>
 <div class="form-item">
-<label>包装说明</label>
-<input id="stockPackage" placeholder="包装，例如：1盒内含4瓶">
+<label>包装说明（下拉选择档案📋）</label>
+<input list="packageList" id="stockPackage" placeholder="🔽下拉选择，也可手动输入">
+<datalist id="packageList"></datalist>
 </div>
 </div>
 <div class="row">
@@ -91,8 +104,16 @@ ul{padding-left:20px}
 <input type="number" id="stockNum" value="1">
 </div>
 <div class="form-item">
-<label>供应商</label>
-<input id="stockSup">
+<label>供应商（下拉选择档案📋）</label>
+<input list="supList" id="stockSup" placeholder="🔽下拉选择，也可手动输入">
+<datalist id="supList"></datalist>
+</div>
+<div class="form-item">
+<label>储存位置</label>
+<select id="stockPosition">
+<option value="常温">常温</option>
+<option value="冷库">冷库</option>
+</select>
 </div>
 </div>
 <div class="row">
@@ -103,13 +124,14 @@ ul{padding-left:20px}
 </div>
 <div class="row">
 <button class="btn btn-primary" onclick="saveStock()">保存库存记录</button>
+<button class="btn" onclick="cancelEdit()">取消编辑</button>
 <button class="btn" onclick="clearStockForm()">清空表单</button>
 </div>
 </div>
 
 <div class="card">
-<h3>库存列表 <small>红色=临近过期(失效时间≤30天)｜绿色=已比对｜点击数量可快速修改</small></h3>
-<div id="stockTableWrap"></div>
+<h3>库存列表 <small>红色=临近过期(失效时间≤30天)｜绿色=已比对｜点击数量可快速修改<br>💡比对状态修改请到【生化试剂比对】标签页操作</small></h3>
+<div class="table-wrap" id="stockTableWrap"></div>
 </div>
 </div>
 
@@ -129,30 +151,45 @@ ul{padding-left:20px}
 </div>
 <button class="btn btn-primary" onclick="renderCompareTable()">刷新列表</button>
 <button class="btn" onclick="exportCompareCsv()">导出比对列表CSV</button>
-<div id="compareWrap"></div>
+<div class="table-wrap" id="compareWrap"></div>
 </div>
 </div>
 
-<!--试剂档案面板-->
+<!--试剂档案面板【新增规格、包装说明、供应商档案】-->
 <div id="reagentlib" class="panel">
 <div class="card">
-<h3>试剂档案库</h3>
-<p>维护试剂名称、分类；档案录入后，库存页面下拉框直接选用；分类填写<strong>生化</strong>，才出现在生化比对页面</p>
+<h3>试剂档案库（维护下拉候选数据）</h3>
+<p>在此录入常用【名称、分类、规格、包装、供应商】；库存页面直接下拉选用；分类填写<strong>生化</strong>，才出现在生化比对页面</p>
+
 <div class="row">
 <div class="form-item">
 <label>新增试剂名称</label>
 <input id="libName">
+<button class="btn btn-primary" onclick="addReagentLib()">添加名称</button>
 </div>
 <div class="form-item">
 <label>新增分类</label>
 <input id="libCate">
-</div>
-</div>
-<div class="row">
-<button class="btn btn-primary" onclick="addReagentLib()">添加试剂名称</button>
 <button class="btn btn-primary" onclick="addCateLib()">添加分类</button>
 </div>
-<div id="libTableWrap"></div>
+<div class="form-item">
+<label>新增规格</label>
+<input id="libSpec">
+<button class="btn btn-primary" onclick="addSpecLib()">添加规格</button>
+</div>
+<div class="form-item">
+<label>新增包装说明</label>
+<input id="libPackage">
+<button class="btn btn-primary" onclick="addPackageLib()">添加包装</button>
+</div>
+<div class="form-item">
+<label>新增供应商</label>
+<input id="libSup">
+<button class="btn btn-primary" onclick="addSupLib()">添加供应商</button>
+</div>
+</div>
+
+<div class="lib-grid" id="libTableWrap"></div>
 </div>
 </div>
 
@@ -160,7 +197,7 @@ ul{padding-left:20px}
 <div id="export" class="panel">
 <div class="card">
 <h3>月度盘存导出 & 系统备份导入</h3>
-<p>【月度盘存导出CSV】下载后直接用Excel打开打印做账（包含比对状态、生产日期、失效时间）</p>
+<p>【月度盘存导出CSV】下载后直接用Excel打开打印做账（包含比对状态、储存位置、生产日期、失效时间）</p>
 <button class="btn btn-primary" onclick="exportInventoryCsv()">📅 月度盘存导出CSV</button>
 
 <p style="margin-top:12px">【系统备份JSON】用于软件数据恢复，不要直接打开编辑</p>
@@ -175,7 +212,7 @@ ul{padding-left:20px}
 
 <div class="card">
 <h3>📥 Excel批量导入库存（.xls / .xlsx）</h3>
-<p>Excel第一行写表头，列名支持：试剂名称、分类、规格、包装说明、批号、生产日期、失效时间、库存数量、供应商、备注</p>
+<p>Excel第一行写表头，列名支持：试剂名称、分类、规格、包装说明、批号、生产日期、失效时间、库存数量、供应商、储存位置、备注</p>
 <p style="color:#dd6b20">导入方式：<b>追加导入</b>（不会清空原有库存，新数据追加到列表末尾）</p>
 <input type="file" id="excelFile" accept=".xls,.xlsx">
 <button class="btn btn-primary" onclick="importExcel()">导入Excel库存</button>
@@ -185,12 +222,16 @@ ul{padding-left:20px}
 
 <script>
 const DB_NAME="ReagentDB";
-const DB_VERSION=6;
+const DB_VERSION=10;
 let db=null;
+let currentEditRowId=null;
 const stores={
 stock:"stock",
 reagentLib:"reagentLib",
-cateLib:"cateLib"
+cateLib:"cateLib",
+specLib:"specLib",
+packageLib:"packageLib",
+supLib:"supLib"
 }
 
 function openDB(){
@@ -201,6 +242,9 @@ db=e.target.result;
 if(!db.objectStoreNames.contains(stores.stock))db.createObjectStore(stores.stock,{keyPath:"id",autoIncrement:true});
 if(!db.objectStoreNames.contains(stores.reagentLib))db.createObjectStore(stores.reagentLib,{keyPath:"id",autoIncrement:true});
 if(!db.objectStoreNames.contains(stores.cateLib))db.createObjectStore(stores.cateLib,{keyPath:"id",autoIncrement:true});
+if(!db.objectStoreNames.contains(stores.specLib))db.createObjectStore(stores.specLib,{keyPath:"id",autoIncrement:true});
+if(!db.objectStoreNames.contains(stores.packageLib))db.createObjectStore(stores.packageLib,{keyPath:"id",autoIncrement:true});
+if(!db.objectStoreNames.contains(stores.supLib))db.createObjectStore(stores.supLib,{keyPath:"id",autoIncrement:true});
 }
 req.onsuccess=e=>{db=e.target.result;res(db)}
 req.onerror=e=>rej(e.target.error)
@@ -262,20 +306,38 @@ await renderLib();
 await fillDatalist();
 }
 
-//填充下拉列表：试剂档案的名称、分类全部加载到datalist，库存页面可以下拉选择
+//填充全部下拉datalist：名称、分类、规格、包装、供应商
 async function fillDatalist(){
 const nameList=await getAll(stores.reagentLib);
 const cateList=await getAll(stores.cateLib);
+const specList=await getAll(stores.specLib);
+const pkgList=await getAll(stores.packageLib);
+const supList=await getAll(stores.supLib);
+
 const nameDom=document.getElementById("reagentNameList");
 const cateDom=document.getElementById("cateList");
+const specDom=document.getElementById("specList");
+const pkgDom=document.getElementById("packageList");
+const supDom=document.getElementById("supList");
+
 nameDom.innerHTML="";
 cateDom.innerHTML="";
-nameList.forEach(n=>{
-const opt=document.createElement("option");opt.value=n.name;nameDom.appendChild(opt);
-})
-cateList.forEach(c=>{
-const opt=document.createElement("option");opt.value=c.name;cateDom.appendChild(opt);
-})
+specDom.innerHTML="";
+pkgDom.innerHTML="";
+supDom.innerHTML="";
+
+nameList.forEach(n=>{const opt=document.createElement("option");opt.value=n.name;nameDom.appendChild(opt);})
+cateList.forEach(c=>{const opt=document.createElement("option");opt.value=c.name;cateDom.appendChild(opt);})
+specList.forEach(s=>{const opt=document.createElement("option");opt.value=s.name;specDom.appendChild(opt);})
+pkgList.forEach(p=>{const opt=document.createElement("option");opt.value=p.name;pkgDom.appendChild(opt);})
+supList.forEach(s=>{const opt=document.createElement("option");opt.value=s.name;supDom.appendChild(opt);})
+}
+
+//取消编辑
+window.cancelEdit=function(){
+currentEditRowId=null;
+clearStockForm();
+renderAll();
 }
 
 //保存库存（新增/编辑共用）
@@ -291,19 +353,26 @@ const expDate=document.getElementById("stockExpDate").value;
 const num=Number(document.getElementById("stockNum").value||0);
 const sup=document.getElementById("stockSup").value.trim();
 const remark=document.getElementById("stockRemark").value.trim();
+const position=document.getElementById("stockPosition").value;
 if(!name){alert("试剂名称不能为空");return;}
 
+//自动把输入内容写入档案库
 const allNames=await getAll(stores.reagentLib);
 const allCates=await getAll(stores.cateLib);
+const allSpec=await getAll(stores.specLib);
+const allPkg=await getAll(stores.packageLib);
+const allSup=await getAll(stores.supLib);
+
 if(!allNames.find(x=>x.name===name)) await add(stores.reagentLib,{name});
 if(!allCates.find(x=>x.name===cate)) await add(stores.cateLib,{name});
+if(spec && !allSpec.find(x=>x.name===spec)) await add(stores.specLib,{name});
+if(pack && !allPkg.find(x=>x.name===pack)) await add(stores.packageLib,{name});
+if(sup && !allSup.find(x=>x.name===sup)) await add(stores.supLib,{name});
 
 if(editId){
-//编辑模式
+//编辑模式，名称、分类不允许修改
 const allStock=await getAll(stores.stock);
 const item=allStock.find(d=>d.id===Number(editId));
-item.name=name;
-item.cate=cate;
 item.spec=spec;
 item.packageDesc=pack;
 item.batch=batch;
@@ -312,12 +381,15 @@ item.expDate=expDate;
 item.num=num;
 item.sup=sup;
 item.remark=remark;
+item.position=position;
 await put(stores.stock,item);
 alert("✅编辑保存成功");
+currentEditRowId=null;
 }else{
 //新增模式
 await add(stores.stock,{
 name,cate,spec,packageDesc:pack,batch,prodDate,expDate,num,sup,remark,
+position:position,
 compareStatus:"未比对",createTime:new Date().toISOString()
 });
 alert("✅保存库存成功");
@@ -326,8 +398,9 @@ clearStockForm();
 await renderAll();
 }
 
-//清空表单，退出编辑状态
-function clearStockForm(){
+//清空表单，增加确认弹窗防止误触
+window.clearStockForm=function(){
+if(confirm("确认清空当前表单所有填写内容吗？")){
 document.getElementById("stockName").value="";
 document.getElementById("stockCate").value="";
 document.getElementById("stockSpec").value="";
@@ -338,9 +411,13 @@ document.getElementById("stockExpDate").value="";
 document.getElementById("stockNum").value=1;
 document.getElementById("stockSup").value="";
 document.getElementById("stockRemark").value="";
+document.getElementById("stockPosition").value="常温";
 document.getElementById("editStockId").value="";
 document.getElementById("editTip").style.display="none";
 document.getElementById("editIdText").innerText="";
+document.getElementById("stockName").removeAttribute("readonly");
+document.getElementById("stockCate").removeAttribute("readonly");
+}
 }
 
 //加载数据到表单，进入编辑模式
@@ -348,12 +425,16 @@ window.editStock=async function(id){
 const all=await getAll(stores.stock);
 const item=all.find(d=>d.id===id);
 if(!item)return;
+currentEditRowId=id;
 document.getElementById("editStockId").value=item.id;
 document.getElementById("editTip").style.display="block";
 document.getElementById("editIdText").innerText=item.id;
 
 document.getElementById("stockName").value=item.name||"";
 document.getElementById("stockCate").value=item.cate||"";
+document.getElementById("stockName").setAttribute("readonly","readonly");
+document.getElementById("stockCate").setAttribute("readonly","readonly");
+
 document.getElementById("stockSpec").value=item.spec||"";
 document.getElementById("stockPackage").value=item.packageDesc||"";
 document.getElementById("stockBatch").value=item.batch||"";
@@ -362,6 +443,9 @@ document.getElementById("stockExpDate").value=item.expDate||"";
 document.getElementById("stockNum").value=item.num||1;
 document.getElementById("stockSup").value=item.sup||"";
 document.getElementById("stockRemark").value=item.remark||"";
+document.getElementById("stockPosition").value=item.position||"常温";
+await renderAll();
+document.querySelector("#stock .card").scrollIntoView({behavior:"smooth"});
 }
 
 //快速修改库存数量
@@ -378,12 +462,18 @@ await put(stores.stock,item);
 await renderAll();
 }
 
-//切换比对状态
+//生化比对切换状态弹窗
 window.toggleCompareStatus=async function(id){
 const all=await getAll(stores.stock);
 const item=all.find(d=>d.id===id);
 if(!item) return;
-item.compareStatus=item.compareStatus==="已比对"?"未比对":"已比对";
+const targetNew=item.compareStatus==="已比对"?"未比对":"已比对";
+const ok=confirm(`确定标记为【${targetNew}】吗？`);
+if(!ok){
+alert("已取消本次比对状态修改");
+return;
+}
+item.compareStatus=targetNew;
 await put(stores.stock,item);
 await renderAll();
 }
@@ -403,7 +493,7 @@ if(!list.length){wrap.innerHTML="<p>暂无库存数据</p>";return;}
 let html=`<table>
 <tr>
 <th>试剂名称</th><th>分类</th><th>规格</th><th>包装说明</th><th>批号</th>
-<th>生产日期</th><th>失效时间</th><th>数量</th><th>供应商</th><th>比对状态</th><th>备注</th><th>操作</th>
+<th>生产日期</th><th>失效时间</th><th>数量</th><th>供应商</th><th>储存位置</th><th>比对状态</th><th>备注</th><th>操作</th>
 </tr>`;
 const now=new Date();
 list.forEach(item=>{
@@ -413,8 +503,9 @@ const expD=new Date(item.expDate);
 const diff=(expD.getTime()-now.getTime())/(1000*3600*24);
 if(diff<=30) cls="warn";
 }
+if(currentEditRowId===item.id) cls+=" edit-selected";
 let statusCls=item.compareStatus==="已比对"?"done":"";
-html+=`<tr class="${cls}">
+html+=`<tr class="${cls.trim()}">
 <td>${item.name||""}</td>
 <td>${item.cate||""}</td>
 <td>${item.spec||""}</td>
@@ -424,11 +515,11 @@ html+=`<tr class="${cls}">
 <td>${item.expDate||""}</td>
 <td class="qty-cell" onclick="quickEditQty(${item.id})" title="点击修改数量">${item.num}</td>
 <td>${item.sup||""}</td>
+<td>${item.position||"常温"}</td>
 <td class="${statusCls}">${item.compareStatus||"未比对"}</td>
 <td>${item.remark||""}</td>
 <td>
 <button class="btn btn-warn" onclick="editStock(${item.id})">编辑</button>
-<button class="btn btn-success" onclick="toggleCompareStatus(${item.id})">切换比对</button>
 <button class="btn btn-danger" onclick="delStock(${item.id})">删除</button>
 </td>
 </tr>`
@@ -437,7 +528,7 @@ html+="</table>";
 wrap.innerHTML=html;
 }
 
-//生化比对页面：严格等于“生化”分类
+//生化比对页面渲染
 async function renderCompareTable(){
 const filter=document.getElementById("compareFilter").value;
 const all=await getAll(stores.stock);
@@ -499,7 +590,7 @@ a.click();
 URL.revokeObjectURL(a.href);
 }
 
-//试剂档案
+//====档案新增函数====
 window.addReagentLib=async function(){
 const n=document.getElementById("libName").value.trim();
 if(!n){alert("请输入试剂名称");return;}
@@ -507,7 +598,6 @@ await add(stores.reagentLib,{name:n});
 document.getElementById("libName").value="";
 await renderAll();
 }
-
 window.addCateLib=async function(){
 const c=document.getElementById("libCate").value.trim();
 if(!c){alert("请输入分类名称");return;}
@@ -515,29 +605,71 @@ await add(stores.cateLib,{name:c});
 document.getElementById("libCate").value="";
 await renderAll();
 }
+window.addSpecLib=async function(){
+const s=document.getElementById("libSpec").value.trim();
+if(!s){alert("请输入规格");return;}
+await add(stores.specLib,{name:s});
+document.getElementById("libSpec").value="";
+await renderAll();
+}
+window.addPackageLib=async function(){
+const p=document.getElementById("libPackage").value.trim();
+if(!p){alert("请输入包装说明");return;}
+await add(stores.packageLib,{name:p});
+document.getElementById("libPackage").value="";
+await renderAll();
+}
+window.addSupLib=async function(){
+const sp=document.getElementById("libSup").value.trim();
+if(!sp){alert("请输入供应商");return;}
+await add(stores.supLib,{name:sp});
+document.getElementById("libSup").value="";
+await renderAll();
+}
 
 window.delLibItem=async function(store,id){
-if(!confirm("确定删除档案？")) return;
+if(!confirm("确定删除这条档案记录？")) return;
 await del(store,id);
 await renderAll();
 }
 
+//渲染全部档案页面，网格布局，5个档案块
 async function renderLib(){
 const names=await getAll(stores.reagentLib);
 const cates=await getAll(stores.cateLib);
+const specs=await getAll(stores.specLib);
+const pkgs=await getAll(stores.packageLib);
+const sups=await getAll(stores.supLib);
 const wrap=document.getElementById("libTableWrap");
-let html="<div class='row'><div style='flex:1'><h4>已保存试剂名称</h4><ul>";
-names.forEach(x=>html+=`<li>${x.name} <button class="btn" onclick='delLibItem("reagentLib",${x.id})'>删除</button></li>`);
-html+="</ul></div><div style='flex:1'><h4>已保存分类</h4><ul>";
-cates.forEach(x=>html+=`<li>${x.name} <button class="btn" onclick='delLibItem("cateLib",${x.id})'>删除</button></li>`);
-html+="</ul></div></div>";
+let html=`
+<div class="lib-block">
+<h4>📋试剂名称档案</h4><ul>
+${names.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("reagentLib",${x.id})'>删除</button></li>`).join("")}
+</ul></div>
+<div class="lib-block">
+<h4>📋分类档案</h4><ul>
+${cates.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("cateLib",${x.id})'>删除</button></li>`).join("")}
+</ul></div>
+<div class="lib-block">
+<h4>📋规格档案</h4><ul>
+${specs.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("specLib",${x.id})'>删除</button></li>`).join("")}
+</ul></div>
+<div class="lib-block">
+<h4>📋包装说明档案</h4><ul>
+${pkgs.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("packageLib",${x.id})'>删除</button></li>`).join("")}
+</ul></div>
+<div class="lib-block">
+<h4>📋供应商档案</h4><ul>
+${sups.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("supLib",${x.id})'>删除</button></li>`).join("")}
+</ul></div>
+`;
 wrap.innerHTML=html;
 }
 
 //导出月度盘存
 async function exportInventoryCsv(){
 const list=await getAll(stores.stock);
-const header=["试剂名称","分类","规格","包装说明","批号","生产日期","失效时间","库存数量","供应商","比对状态","备注"];
+const header=["试剂名称","分类","规格","包装说明","批号","生产日期","失效时间","库存数量","供应商","储存位置","比对状态","备注"];
 const lines=[];
 lines.push(header.join(","));
 list.forEach(item=>{
@@ -551,6 +683,7 @@ const row=[
 `"${item.expDate||""}"`,
 item.num,
 `"${(item.sup||"").replace(/"/g,'""')}"`,
+`"${item.position||"常温"}"`,
 `"${item.compareStatus||"未比对"}"`,
 `"${(item.remark||"").replace(/"/g,'""')}"`
 ];
@@ -567,12 +700,23 @@ a.click();
 URL.revokeObjectURL(a.href);
 }
 
-//导出备份
+//导出全部备份（包含新增的规格、包装、供应商档案）
 async function exportData(){
 const stock=await getAll(stores.stock);
 const rlib=await getAll(stores.reagentLib);
 const clib=await getAll(stores.cateLib);
-const data={stock,reagentLib:rlib,cateLib:clib,exportAt:new Date().toISOString()};
+const slib=await getAll(stores.specLib);
+const plib=await getAll(stores.packageLib);
+const suplib=await getAll(stores.supLib);
+const data={
+    stock,
+    reagentLib:rlib,
+    cateLib:clib,
+    specLib:slib,
+    packageLib:plib,
+    supLib:suplib,
+    exportAt:new Date().toISOString()
+};
 const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
 const a=document.createElement("a");
 a.href=URL.createObjectURL(blob);
@@ -587,20 +731,22 @@ const file=document.getElementById("importFile").files[0];
 if(!file){alert("请选择备份json文件");return;}
 const text=await file.text();
 const json=JSON.parse(text);
-const tx=db.transaction([stores.stock,stores.reagentLib,stores.cateLib],"readwrite");
-tx.objectStore(stores.stock).clear();
-tx.objectStore(stores.reagentLib).clear();
-tx.objectStore(stores.cateLib).clear();
+const tx=db.transaction(Object.values(stores),"readwrite");
+for(let key of Object.values(stores)) tx.objectStore(key).clear();
 await new Promise(res=>tx.oncomplete=res);
+
 for(const s of json.stock) await add(stores.stock,s);
-for(const r of json.reagentLib) await add(stores.reagentLib,r);
-for(const c of json.cateLib) await add(stores.cateLib,c);
+if(json.reagentLib) for(const r of json.reagentLib) await add(stores.reagentLib,r);
+if(json.cateLib) for(const c of json.cateLib) await add(stores.cateLib,c);
+if(json.specLib) for(const s of json.specLib) await add(stores.specLib,s);
+if(json.packageLib) for(const p of json.packageLib) await add(stores.packageLib,p);
+if(json.supLib) for(const sp of json.supLib) await add(stores.supLib,sp);
+
 await renderAll();
 alert("✅导入完成");
 }
 
 //============Excel导入============
-//列名映射：Excel中文列名 -> 系统字段名
 const COL_MAP={
 "试剂名称":"name",
 "名称":"name",
@@ -618,14 +764,13 @@ const COL_MAP={
 "库存数量":"num",
 "数量":"num",
 "供应商":"sup",
+"储存位置":"position",
 "备注":"remark"
 }
 
-//日期格式化：Excel日期序列号或字符串 -> YYYY-MM-DD
 function parseExcelDate(val){
 if(!val) return "";
 if(typeof val==="number"){
-//Excel日期序列号
 const d=new Date((val-25569)*86400*1000);
 const y=d.getUTCFullYear();
 const m=String(d.getUTCMonth()+1).padStart(2,"0");
@@ -638,7 +783,6 @@ const m=String(val.getMonth()+1).padStart(2,"0");
 const d=String(val.getDate()).padStart(2,"0");
 return `${y}-${m}-${d}`;
 }
-//字符串
 const s=String(val).trim();
 if(/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(s)){
 const parts=s.split(/[-/]/);
@@ -666,35 +810,35 @@ if(!rows.length){resultDom.innerText="❌Excel里没有数据";return;}
 let success=0;
 const allNames=await getAll(stores.reagentLib);
 const allCates=await getAll(stores.cateLib);
+const allSpec=await getAll(stores.specLib);
+const allPkg=await getAll(stores.packageLib);
+const allSup=await getAll(stores.supLib);
+
 const nameSet=new Set(allNames.map(x=>x.name));
 const cateSet=new Set(allCates.map(x=>x.name));
+const specSet=new Set(allSpec.map(x=>x.name));
+const pkgSet=new Set(allPkg.map(x=>x.name));
+const supSet=new Set(allSup.map(x=>x.name));
 
 for(const row of rows){
-const item={compareStatus:"未比对",createTime:new Date().toISOString()};
+const item={compareStatus:"未比对",createTime:new Date().toISOString(),position:"常温"};
 let hasName=false;
 for(const key of Object.keys(row)){
 const field=COL_MAP[key.trim()];
 if(!field) continue;
 let val=row[key];
-if(field==="prodDate"||field==="expDate"){
-val=parseExcelDate(val);
-}
-if(field==="num"){
-val=Number(val)||0;
-}
+if(field==="prodDate"||field==="expDate") val=parseExcelDate(val);
+if(field==="num") val=Number(val)||0;
 item[field]=val;
 if(field==="name"&&val) hasName=true;
 }
 if(!hasName) continue;
-//自动加入档案
-if(!nameSet.has(item.name)){
-await add(stores.reagentLib,{name:item.name});
-nameSet.add(item.name);
-}
-if(item.cate&&!cateSet.has(item.cate)){
-await add(stores.cateLib,{name:item.cate});
-cateSet.add(item.cate);
-}
+if(!nameSet.has(item.name)){await add(stores.reagentLib,{name:item.name});nameSet.add(item.name);}
+if(item.cate&&!cateSet.has(item.cate)){await add(stores.cateLib,{name:item.cate});cateSet.add(item.cate);}
+if(item.spec&&!specSet.has(item.spec)){await add(stores.specLib,{name:item.spec});specSet.add(item.spec);}
+if(item.packageDesc&&!pkgSet.has(item.packageDesc)){await add(stores.packageLib,{name:item.packageDesc});pkgSet.add(item.packageDesc);}
+if(item.sup&&!supSet.has(item.sup)){await add(stores.supLib,{name:item.sup});supSet.add(item.sup);}
+
 await add(stores.stock,item);
 success++;
 }
