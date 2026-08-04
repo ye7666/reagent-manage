@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh‑CN">
+<head>
+<meta charset="UTF‑8">
+<meta name="viewport" content="width=device‑width, initial‑scale=1.0, maximum‑scale=1.0, user‑scalable=no">
+<title>试剂管理</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<style>
+*{box‑sizing:border‑box;margin:0;padding:0;font‑family:‑apple‑system,BlinkMacSystemFont,system‑ui}
+body{padding:12px;background:#f5f7fa;color:#222;padding‑bottom:80px}
+.card{background:#fff;border‑radius:10px;padding:14px;margin‑bottom:12px;box‑shadow:0 1px 4px #00000015}
+input{width:100%;padding:10px;border:1px solid #ddd;border‑radius:8px;margin:6px 0;font‑size:16px}
+button{padding:10px 12px;border:none;border‑radius:8px;margin:4px;font‑size:15px;cursor:pointer}
+.btn‑primary{background:#007aff;color:#fff}
+.btn‑warn{background:#ff9500;color:#fff}
+.btn‑danger{background:#ff3b30;color:#fff}
+.btn‑gray{background:#e5e7eb;color:#333}
+.item{padding:10px;border‑bottom:1px solid #eee}
+.warn‑expire{background:#fff2cc}
+.danger‑expire{background:#ffdddd}
+#video{width:100%;border‑radius:8px;background:#000}
+.title{font‑size:18px;font‑weight:bold;margin:10px 0}
+.flex{display:flex;flex‑wrap:wrap}
+</style>
+</head>
+<body>
+<div class="title">检验科试剂管理</div>
+
+<div class="card">
+<div>试剂名称</div>
+<input id="name" placeholder="试剂名称">
+<div>厂家</div>
+<input id="factory" placeholder="厂家">
+<div>规格</div>
+<input id="spec" placeholder="规格">
+<div>批号</div>
+<input id="batch" placeholder="批号">
+<div>有效期(yyyy‑mm‑dd)</div>
+<input id="expire" type="date">
+<div>库存数量</div>
+<input id="num" type="number" placeholder="数量">
+<div>存放位置</div>
+<input id="pos" placeholder="存放位置">
+<div class="flex">
+<button class="btn‑primary" onclick="addItem()">保存试剂</button>
+<button class="btn‑gray" onclick="openScan()">扫码</button>
+<button class="btn‑warn" onclick="exportCsv()">导出CSV备份</button>
+</div>
+</div>
+
+<div class="card">
+<div class="title">库存列表 <span id="warnTip"></span></div>
+<div id="list"></div>
+</div>
+
+<div id="scanBox" class="card" style="display:none">
+<video id="video" autoplay playsinline></video>
+<button class="btn‑danger" onclick="closeScan()">关闭扫码</button>
+</div>
+
+<script>
+let db;
+const DB_NAME = "ReagentDB";
+const STORE = "reagents";
+
+//初始化IndexedDB
+function initDB(){
+return new Promise((res,rej)=>{
+const req = indexedDB.open(DB_NAME,1);
+req.onupgradeneeded=e=>{
+db=e.target.result;
+if(!db.objectStoreNames.contains(STORE)){
+db.createObjectStore(STORE,{keyPath:"id",autoIncrement:true});
+}
+};
+req.onsuccess=e=>{db=e.target.result;res()};
+req.onerror=e=>rej(e);
+})
+}
+
+async function addItem(){
+const name=document.getElementById("name").value.trim();
+const factory=document.getElementById("factory").value.trim();
+const spec=document.getElementById("spec").value.trim();
+const batch=document.getElementById("batch").value.trim();
+const expire=document.getElementById("expire").value;
+const num=Number(document.getElementById("num").value);
+const pos=document.getElementById("pos").value.trim();
+if(!name||!batch||!expire){alert("名称、批号、有效期必填");return}
+const tx=db.transaction([STORE],"readwrite");
+tx.objectStore(STORE).add({name,factory,spec,batch,expire,num,pos,ct:new Date().toISOString()});
+await tx.complete;
+clearInput();
+renderList();
+}
+
+function clearInput(){
+["name","factory","spec","batch","expire","num","pos"].forEach(id=>document.getElementById(id).value="")
+}
+
+async function getAll(){
+const tx=db.transaction(STORE);
+const store=tx.objectStore(STORE);
+return await getAllReq(store.getAll())
+}
+function getAllReq(req){
+return new Promise(res=>{req.onsuccess=e=>res(e.target.result)})
+}
+
+async function delItem(id){
+if(!confirm("确定删除这条记录？"))return;
+const tx=db.transaction([STORE],"readwrite");
+tx.objectStore(STORE).delete(id);
+await tx.complete;
+renderList();
+}
+
+async function renderList(){
+const arr=await getAll();
+const now=new Date();
+const thirty=new Date();thirty.setDate(now.getDate()+30);
+let html="";
+let warnCount=0;
+arr.sort((a,b)=>new Date(a.expire)-new Date(b.expire));
+arr.forEach(i=>{
+const ed=new Date(i.expire);
+let cls="";
+if(ed<now){cls="danger‑expire";warnCount++}
+else if(ed<thirty){cls="warn‑expire";warnCount++}
+html+=`<div class="item ${cls}">
+<div><b>${i.name}</b> ${i.spec}</div>
+<div>批号:${i.batch}｜效期:${i.expire}</div>
+<div>数量:${i.num}｜位置:${i.pos}｜厂家:${i.factory}</div>
+<button class="btn‑danger" onclick="delItem(${i.id})">删除</button>
+</div>`
+})
+document.getElementById("list").innerHTML=html||"<div style='padding:10px'>暂无试剂数据</div>";
+document.getElementById("warnTip").innerText=warnCount>0?`【${warnCount}条试剂过期/即将到期】`:"";
+}
+
+//导出CSV
+async function exportCsv(){
+const arr=await getAll();
+let s="名称,厂家,规格,批号,有效期,库存数量,存放位置\n";
+arr.forEach(i=>{
+s+=`"${i.name}","${i.factory}","${i.spec}","${i.batch}","${i.expire}",${i.num},"${i.pos}"\n`
+})
+const blob=new Blob([s],{type:"text/csv;charset=utf‑8"});
+const a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="试剂库存备份.csv";
+a.click();
+alert("已导出备份！请保存到手机文件App");
+}
+
+//扫码
+let stream;
+async function openScan(){
+document.getElementById("scanBox").style.display="block";
+const video=document.getElementById("video");
+stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+video.srcObject=stream;
+tickScan();
+}
+function closeScan(){
+if(stream)stream.getTracks().forEach(t=>t.stop());
+document.getElementById("scanBox").style.display="none";
+}
+function tickScan(){
+const v=document.getElementById("video");
+if(v.readyState===v.HAVE_ENOUGH_DATA){
+const canvas=document.createElement("canvas");
+canvas.width=v.videoWidth;canvas.height=v.videoHeight;
+const ctx=canvas.getContext("2d");
+ctx.drawImage(v,0,0);
+const res=jsQR(ctx.getImageData(0,0,canvas.width,canvas.height),canvas.width,canvas.height);
+if(res){
+document.getElementById("batch").value=res.data;
+closeScan();
+alert("识别条码："+res.data);
+return;
+}
+}
+requestAnimationFrame(tickScan);
+}
+
+window.onload=async()=>{
+await initDB();
+renderList();
+}
+</script>
+</body>
+</html>
