@@ -105,7 +105,7 @@ ul{padding-left:20px;list-style:none}
 </div>
 <div class="row">
 <div class="form-item">
-<label>批号（LOT）</label>
+<label>批号</label>
 <input id="stockBatch">
 </div>
 <div class="form-item">
@@ -237,7 +237,7 @@ ul{padding-left:20px;list-style:none}
 
 <div class="card">
 <h3>📥 Excel批量导入库存（.xls / .xlsx）</h3>
-<p>Excel第一行写表头，列名支持：试剂名称、分类、包装规格、批号（LOT）、生产日期、有效期至、库存数量、试剂品牌、储存位置、备注</p>
+<p>Excel第一行写表头，列名支持：试剂名称、分类、包装规格、批号、生产日期、有效期至、库存数量、试剂品牌、储存位置、备注</p>
 <p style="color:#dd6b20">导入方式：<b>追加导入</b>（不会清空原有库存，新数据追加到列表末尾）</p>
 <input type="file" id="excelFile" accept=".xls,.xlsx">
 <button class="btn btn-primary" onclick="importExcel()">导入Excel库存</button>
@@ -551,7 +551,7 @@ if(!list.length){wrap.innerHTML="<p>暂无库存数据</p>";return;}
 let html=`<table>
 <tr>
 <th class="chk-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
-<th>试剂名称</th><th>分类</th><th>包装规格</th><th>批号（LOT）</th>
+<th>试剂名称</th><th>分类</th><th>包装规格</th><th>批号</th>
 <th>生产日期</th><th>有效期至</th><th>数量</th><th>试剂品牌</th><th>储存位置</th><th>比对状态</th><th>备注</th><th>操作</th>
 </tr>`;
 const now=new Date();
@@ -603,7 +603,7 @@ if(filter==="no") list=list.filter(x=>x.compareStatus==="未比对");
 const wrap=document.getElementById("compareWrap");
 if(!list.length){wrap.innerHTML="<p>暂无【生化】分类试剂，请先录入分类为生化的试剂库存</p>";return;}
 let html=`<table><tr>
-<th>试剂名称</th><th>分类</th><th>批号（LOT）</th><th>生产日期</th><th>有效期至</th><th>数量</th><th>比对状态</th><th>操作</th>
+<th>试剂名称</th><th>分类</th><th>批号</th><th>生产日期</th><th>有效期至</th><th>数量</th><th>比对状态</th><th>操作</th>
 </tr>`;
 list.forEach(item=>{
 let statusText=item.compareStatus||"未比对";
@@ -629,7 +629,7 @@ const all=await getAll(stores.stock);
 let list=all.filter(r=> (r.cate||"") === "生化");
 if(filter==="yes") list=list.filter(x=>x.compareStatus==="已比对");
 if(filter==="no") list=list.filter(x=>x.compareStatus==="未比对");
-const header=["试剂名称","分类","批号（LOT）","生产日期","有效期至","库存数量","比对状态"];
+const header=["试剂名称","分类","批号","生产日期","有效期至","库存数量","比对状态"];
 const lines=[];
 lines.push(header.join(","));
 list.forEach(item=>{
@@ -719,7 +719,7 @@ wrap.innerHTML=html;
 
 async function exportInventoryCsv(){
 const list=await getAll(stores.stock);
-const header=["试剂名称","分类","包装规格","批号（LOT）","生产日期","有效期至","库存数量","试剂品牌","储存位置","比对状态","备注"];
+const header=["试剂名称","分类","包装规格","批号","生产日期","有效期至","库存数量","试剂品牌","储存位置","比对状态","备注"];
 const lines=[];
 lines.push(header.join(","));
 list.forEach(item=>{
@@ -790,7 +790,7 @@ await renderAll();
 alert("✅导入完成");
 }
 
-// Excel列名映射（新旧名称都兼容）
+// Excel列名映射
 const COL_MAP={
 "试剂名称":"name",
 "名称":"name",
@@ -799,7 +799,6 @@ const COL_MAP={
 "包装规格":"spec",
 "规格":"spec",
 "试剂规格":"spec",
-"批号（LOT）":"batch",
 "批号":"batch",
 "生产日期":"prodDate",
 "有效期至":"expDate",
