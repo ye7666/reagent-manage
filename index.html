@@ -52,7 +52,7 @@ ul{padding-left:20px;list-style:none}
 .lib-block h4{margin-bottom:8px;font-size:14px;color:#2b6cb0}
 .lib-block li{margin:3px 0;display:flex;justify-content:space-between;align-items:center}
 .search-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
-#batchSearch{max-width:320px}
+#batchSearch{max-width:380px}
 .batch-del-bar{margin:8px 0;display:flex;gap:8px;align-items:center}
 .batch-del-bar label{font-size:13px;color:#666;margin:0}
 .chk-cell{text-align:center;width:36px}
@@ -152,8 +152,8 @@ ul{padding-left:20px;list-style:none}
 <div class="card">
 <h3>库存列表 <small>红色=临近过期(有效期至≤30天)｜绿色=已比对｜点击数量可快速修改<br>💡比对状态修改请到【生化试剂比对】标签页操作</small></h3>
 <div class="search-row">
-<input id="batchSearch" placeholder="输入批号搜索，快速筛选对应批号试剂">
-<button class="btn btn-primary" onclick="searchBatch()">批号检索</button>
+<input id="batchSearch" placeholder="模糊搜索：试剂名称、品牌、批号、分类、规格、备注">
+<button class="btn btn-primary" onclick="searchBatch()">全局模糊检索</button>
 <button class="btn" onclick="resetSearch()">重置列表</button>
 </div>
 <div class="batch-del-bar">
@@ -530,7 +530,7 @@ await renderAll();
 alert(`✅已删除 ${ids.length} 条记录`);
 }
 
-//批号搜索
+//全局模糊搜索
 window.searchBatch=async function(){
 searchBatchKey=document.getElementById("batchSearch").value.trim().toLowerCase();
 await renderStock();
@@ -544,7 +544,21 @@ await renderStock();
 async function renderStock(){
 let list=await getAll(stores.stock);
 if(searchBatchKey!==''){
-list=list.filter(i=> (i.batch||"").toLowerCase().includes(searchBatchKey))
+list=list.filter(i=>{
+    //多字段模糊匹配：名称、分类、规格、批号、品牌、备注
+    const name=(i.name||"").toLowerCase();
+    const cate=(i.cate||"").toLowerCase();
+    const spec=(i.spec||"").toLowerCase();
+    const batch=(i.batch||"").toLowerCase();
+    const sup=(i.sup||"").toLowerCase();
+    const remark=(i.remark||"").toLowerCase();
+    return name.includes(searchBatchKey)
+    || cate.includes(searchBatchKey)
+    || spec.includes(searchBatchKey)
+    || batch.includes(searchBatchKey)
+    || sup.includes(searchBatchKey)
+    || remark.includes(searchBatchKey);
+})
 }
 const wrap=document.getElementById("stockTableWrap");
 if(!list.length){wrap.innerHTML="<p>暂无库存数据</p>";return;}
