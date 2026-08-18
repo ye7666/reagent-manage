@@ -24,12 +24,14 @@ body{padding:12px;background:#f5f7fa;color:#222;max-width:1200px;margin:0 auto}
 label{font-size:13px;margin:4px 0;font-weight:500}
 .input-wrap{display:flex;gap:6px;position:relative}
 input,select,textarea{padding:10px 12px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px;flex-grow:1}
-.menu-btn{width:42px;border:1px solid #cbd5e0;background:#2b6cb0;color:#fff;border-radius:6px;cursor:pointer;font-size:18px}
+.menu-btn{width:42px;border:1px solid #cbd5e0;background:#2b6cb0;color:#fff;border-radius:6px;cursor:pointer;font-size:18px;
+-webkit-appearance:none;appearance:none}
 .drop-menu{position:absolute;top:44px;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:6px;max-height:240px;overflow-y:auto;z-index:999;display:none}
 .drop-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid #eee}
 .drop-item:hover{background:#edf2f7}
 textarea{min-height:70px}
-.btn{padding:8px 12px;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin:2px}
+.btn{padding:8px 12px;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin:2px;
+-webkit-appearance:none;appearance:none}
 .btn-primary{background:#2b6cb0;color:#fff}
 .btn-warn{background:#dd6b20;color:#fff}
 .btn-danger{background:#c53030;color:#fff}
@@ -152,8 +154,7 @@ ul{padding-left:20px;list-style:none}
 <div class="card">
 <h3>库存列表 <small>红色=临近过期(有效期至≤30天)｜绿色=已比对｜点击数量可快速修改<br>💡比对状态修改请到【生化试剂比对】标签页操作</small></h3>
 <div class="search-row">
-<input id="batchSearch" placeholder="模糊搜索：试剂名称、品牌、批号、分类、规格、备注、数量">
-<button id="btnGlobalSearch" class="btn btn-primary" onclick="searchBatch()">全局模糊检索</button>
+<input id="batchSearch" placeholder="实时搜索：试剂名称、品牌、批号、分类、规格、备注、数量">
 <button id="btnResetSearch" class="btn" onclick="resetSearch()">重置列表</button>
 </div>
 <div class="batch-del-bar">
@@ -317,7 +318,7 @@ function closeAllDropdown(){
 document.querySelectorAll(".drop-menu").forEach(menu=>menu.style.display="none")
 }
 document.querySelectorAll(".menu-btn").forEach(btn=>{
-btn.onclick=async function(e){
+btn.addEventListener("click",async function(e){
 e.stopPropagation();
 closeAllDropdown();
 const storeKey=this.dataset.store;
@@ -346,18 +347,18 @@ menuDom.style.display="block";
 alert("数据表读取失败，请刷新页面重试");
 console.error(err);
 }
-}
 })
-document.onclick=()=>closeAllDropdown();
+})
+document.addEventListener("click",()=>closeAllDropdown());
 
 document.querySelectorAll(".tab").forEach(tab=>{
-tab.onclick=function(){
+tab.addEventListener("click",function(){
 document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
 document.querySelectorAll(".panel").forEach(x=>x.classList.remove("show"));
 this.classList.add("active");
 document.getElementById(this.dataset.tab).classList.add("show");
 if(this.dataset.tab==="compare") renderCompareTable();
-}
+})
 })
 
 async function renderAll(){
@@ -471,7 +472,7 @@ const n=Number(newQty);
 if(isNaN(n)||n<0){alert("请输入有效数字");return;}
 item.num=n;
 await put(stores.stock,item);
-await renderAll();
+await renderStock();
 }
 
 window.toggleCompareStatus=async function(id){
@@ -530,10 +531,10 @@ await renderAll();
 alert(`✅已删除 ${ids.length} 条记录`);
 }
 
-//全局模糊搜索【修复版】
-window.searchBatch=async function(){
+//实时搜索
+function doSearch(){
 searchBatchKey=document.getElementById("batchSearch").value.trim().toLowerCase();
-await renderStock();
+renderStock();
 }
 window.resetSearch=async function(){
 searchBatchKey="";
@@ -545,7 +546,6 @@ async function renderStock(){
 let list=await getAll(stores.stock);
 if(searchBatchKey!==''){
 list=list.filter(i=>{
-    //多字段模糊匹配：名称、分类、规格、批号、品牌、备注、数量
     const name=(i.name||"").toLowerCase();
     const cate=(i.cate||"").toLowerCase();
     const spec=(i.spec||"").toLowerCase();
@@ -564,7 +564,6 @@ list=list.filter(i=>{
 }
 const wrap=document.getElementById("stockTableWrap");
 if(!list.length){wrap.innerHTML="<p>🔍没有匹配到库存数据</p>";return;}
-// 修改：数量放到分类、包装规格中间
 let html=`<table>
 <tr>
 <th class="chk-cell"></th>
@@ -743,7 +742,6 @@ if(list.length===0){
     alert("当前没有库存数据，无法导出");
     return;
 }
-//Excel导出列同步调整顺序：名称、分类、数量、包装规格
 const header=["试剂名称","分类","库存数量","包装规格","生产日期","有效期至","试剂品牌","批号","储存位置","比对状态","备注"];
 const sheetData=[header];
 list.forEach(item=>{
@@ -919,11 +917,13 @@ alert("导入失败："+e.message);
 
 window.onload=async function(){
 await initDB();
-//搜索框回车直接搜索
 const searchInput=document.getElementById("batchSearch");
 if(searchInput){
+    //实时输入搜索
+    searchInput.addEventListener("input",doSearch);
+    //回车也刷新
     searchInput.addEventListener("keydown",e=>{
-        if(e.key==="Enter") searchBatch();
+        if(e.key==="Enter") doSearch();
     })
 }
 }
