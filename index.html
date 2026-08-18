@@ -154,7 +154,7 @@ ul{padding-left:20px;list-style:none}
 <div class="search-row">
 <input id="batchSearch" placeholder="模糊搜索：试剂名称、品牌、批号、分类、规格、备注、数量">
 <button id="btnGlobalSearch" class="btn btn-primary">全局模糊检索</button>
-<button class="btn" onclick="resetSearch()">重置列表</button>
+<button id="btnResetSearch" class="btn">重置列表</button>
 </div>
 <div class="batch-del-bar">
 <label><input type="checkbox" id="selectAllMain" onchange="toggleSelectAll(this)"> 全选</label>
@@ -531,7 +531,7 @@ alert(`✅已删除 ${ids.length} 条记录`);
 }
 
 //全局模糊搜索
-async function searchBatch(){
+window.searchBatch=async function(){
 searchBatchKey=document.getElementById("batchSearch").value.trim().toLowerCase();
 await renderStock();
 }
@@ -926,6 +926,15 @@ function bindFixedClickEvents(){
             e.preventDefault();
             e.stopPropagation();
             searchBatch();
+        })
+    }
+    //重置按钮
+    const resetBtn=document.getElementById("btnResetSearch");
+    if(resetBtn){
+        resetBtn.addEventListener("click",function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            resetSearch();
         })
     }
     //月度盘存导出按钮
