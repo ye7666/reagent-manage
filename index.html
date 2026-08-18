@@ -153,8 +153,8 @@ ul{padding-left:20px;list-style:none}
 <h3>库存列表 <small>红色=临近过期(有效期至≤30天)｜绿色=已比对｜点击数量可快速修改<br>💡比对状态修改请到【生化试剂比对】标签页操作</small></h3>
 <div class="search-row">
 <input id="batchSearch" placeholder="模糊搜索：试剂名称、品牌、批号、分类、规格、备注、数量">
-<button id="btnGlobalSearch" class="btn btn-primary">全局模糊检索</button>
-<button id="btnResetSearch" class="btn">重置列表</button>
+<button id="btnGlobalSearch" class="btn btn-primary" onclick="searchBatch()">全局模糊检索</button>
+<button id="btnResetSearch" class="btn" onclick="resetSearch()">重置列表</button>
 </div>
 <div class="batch-del-bar">
 <label><input type="checkbox" id="selectAllMain" onchange="toggleSelectAll(this)"> 全选</label>
@@ -223,7 +223,7 @@ ul{padding-left:20px;list-style:none}
 <div class="card">
 <h3>月度盘存导出 & 系统备份导入</h3>
 <p>【月度盘存导出XLSX】标准Excel文件（包含比对状态、储存位置、生产日期、有效期至）</p>
-<button id="btnExportInventory" class="btn btn-primary">📅 月度盘存导出XLSX</button>
+<button id="btnExportInventory" class="btn btn-primary" onclick="exportInventoryXlsx()">📅 月度盘存导出XLSX</button>
 
 <p style="margin-top:12px">【系统备份JSON】用于软件数据恢复，不要直接打开编辑</p>
 <button class="btn btn-primary" onclick="exportData()">导出全部数据备份(json)</button>
@@ -530,7 +530,7 @@ await renderAll();
 alert(`✅已删除 ${ids.length} 条记录`);
 }
 
-//全局模糊搜索
+//全局模糊搜索【修复版】
 window.searchBatch=async function(){
 searchBatchKey=document.getElementById("batchSearch").value.trim().toLowerCase();
 await renderStock();
@@ -563,7 +563,7 @@ list=list.filter(i=>{
 })
 }
 const wrap=document.getElementById("stockTableWrap");
-if(!list.length){wrap.innerHTML="<p>暂无库存数据</p>";return;}
+if(!list.length){wrap.innerHTML="<p>🔍没有匹配到库存数据</p>";return;}
 // 修改：数量放到分类、包装规格中间
 let html=`<table>
 <tr>
@@ -917,47 +917,15 @@ alert("导入失败："+e.message);
 }
 }
 
-//IOS‑Safari按钮点击修复，脚本末尾绑定事件
-function bindFixedClickEvents(){
-    //全局搜索按钮
-    const searchBtn=document.getElementById("btnGlobalSearch");
-    if(searchBtn){
-        searchBtn.addEventListener("click",function(e){
-            e.preventDefault();
-            e.stopPropagation();
-            searchBatch();
-        })
-    }
-    //重置按钮
-    const resetBtn=document.getElementById("btnResetSearch");
-    if(resetBtn){
-        resetBtn.addEventListener("click",function(e){
-            e.preventDefault();
-            e.stopPropagation();
-            resetSearch();
-        })
-    }
-    //月度盘存导出按钮
-    const exportBtn=document.getElementById("btnExportInventory");
-    if(exportBtn){
-        exportBtn.addEventListener("click",function(e){
-            e.preventDefault();
-            e.stopPropagation();
-            exportInventoryXlsx();
-        })
-    }
-    //搜索框回车快捷键
-    const searchInput=document.getElementById("batchSearch");
-    if(searchInput){
-        searchInput.addEventListener("keydown",e=>{
-            if(e.key==="Enter") searchBatch();
-        })
-    }
-}
-
 window.onload=async function(){
 await initDB();
-bindFixedClickEvents();
+//搜索框回车直接搜索
+const searchInput=document.getElementById("batchSearch");
+if(searchInput){
+    searchInput.addEventListener("keydown",e=>{
+        if(e.key==="Enter") searchBatch();
+    })
+}
 }
 </script>
 </body>
