@@ -281,6 +281,7 @@ await renderAll();
 const searchInput=document.getElementById("batchSearch");
 searchInput.addEventListener("input",async function(){
     searchBatchKey = this.value.trim().toLowerCase();
+    // 直接调用渲染，修复异步执行顺序问题
     await renderStock();
 })
 }
@@ -537,7 +538,9 @@ alert(`✅已删除 ${ids.length} 条记录`);
 
 
 async function renderStock(){
+//每次都从数据库拿最新全部数据
 let list=await getAll(stores.stock);
+// 搜索过滤
 if(searchBatchKey!==''){
 list=list.filter(i=>{
     //多字段模糊匹配：名称、分类、规格、批号、品牌、备注
@@ -556,7 +559,7 @@ list=list.filter(i=>{
 })
 }
 const wrap=document.getElementById("stockTableWrap");
-if(!list.length){wrap.innerHTML="<p>暂无库存数据</p>";return;}
+if(!list.length){wrap.innerHTML="<p>暂无库存数据（无匹配搜索结果）</p>";return;}
 //表头调整：名称→分类→数量→包装规格→批号
 let html=`<table>
 <tr>
@@ -885,7 +888,7 @@ if(field==="name"&&val) hasName=true;
 }
 if(!hasName) continue;
 if(!nameSet.has(item.name)){await add(stores.reagentLib,{name:item.name});nameSet.add(item.name);}
-if(item.cate&&!cateSet.has(item.cate)){await add(stores.cateLib,{name:item.cate});cateSet.add(item.name);}
+if(item.cate&&!cateSet.has(item.cate)){await add(stores.cateLib,{name:item.cate});cateSet.add(item.cate);}
 if(item.spec&&!specSet.has(item.spec)){await add(stores.specLib,{name:item.spec});specSet.add(item.spec);}
 if(item.sup&&!supSet.has(item.sup)){await add(stores.supLib,{name:item.sup});supSet.add(item.sup);}
 
