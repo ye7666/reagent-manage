@@ -157,7 +157,7 @@ ul{padding-left:20px;list-style:none}
 <button class="btn" onclick="resetSearch()">重置列表</button>
 </div>
 <div class="batch-del-bar">
-<label><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"> 全选</label>
+<label><input type="checkbox" id="selectAllMain" onchange="toggleSelectAll(this)"> 全选</label>
 <button class="btn btn-danger" onclick="batchDelete()">🗑 批量删除选中</button>
 <span id="selectedCount" style="font-size:13px;color:#666;">已选 0 项</span>
 </div>
@@ -180,7 +180,7 @@ ul{padding-left:20px;list-style:none}
 </div>
 </div>
 <button class="btn btn-primary" onclick="renderCompareTable()">刷新列表</button>
-<button class="btn" onclick="exportCompareCsv()">导出比对列表CSV</button>
+<button class="btn btn-primary" onclick="exportCompareCsv()">导出比对列表CSV</button>
 <div class="table-wrap" id="compareWrap"></div>
 </div>
 </div>
@@ -508,7 +508,7 @@ updateSelectedCount();
 function updateSelectedCount(){
 const count=document.querySelectorAll(".row-chk:checked").length;
 document.getElementById("selectedCount").innerText=`已选 ${count} 项`;
-const allChk=document.getElementById("selectAll");
+const allChk=document.getElementById("selectAllMain");
 const total=document.querySelectorAll(".row-chk").length;
 if(total>0){
 allChk.checked = count===total;
@@ -564,9 +564,9 @@ const wrap=document.getElementById("stockTableWrap");
 if(!list.length){wrap.innerHTML="<p>暂无库存数据</p>";return;}
 let html=`<table>
 <tr>
-<th class="chk-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
+<th class="chk-cell"></th>
 <th>试剂名称</th><th>分类</th><th>包装规格</th><th>批号</th>
-<th>生产日期</th><th>有效期至</th><th>数量</th><th>试剂品牌</th><th>储存位置</th><th>比对状态</th><th>备注</th><th>操作</th>
+<th>数量</th><th>生产日期</th><th>有效期至</th><th>试剂品牌</th><th>储存位置</th><th>比对状态</th><th>备注</th><th>操作</th>
 </tr>`;
 const now=new Date();
 list.forEach(item=>{
@@ -590,9 +590,9 @@ html+=`<tr class="${cls.trim()}">
 <td>${item.cate||""}</td>
 <td>${item.spec||""}</td>
 <td>${item.batch||""}</td>
+<td class="qty-cell" onclick="quickEditQty(${item.id})" title="点击修改数量">${item.num}</td>
 <td>${item.prodDate||""}</td>
 <td>${item.expDate||""}</td>
-<td class="qty-cell" onclick="quickEditQty(${item.id})" title="点击修改数量">${item.num}</td>
 <td>${item.sup||""}</td>
 <td>${item.position||"常温"}</td>
 <td>${statusHtml}</td>
@@ -665,7 +665,10 @@ const now=new Date();
 const y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,"0"),d=String(now.getDate()).padStart(2,"0");
 a.href=URL.createObjectURL(blob);
 a.download=`生化试剂比对_${y}年${m}月${d}日.csv`;
+//修复导出不触发
+document.body.appendChild(a);
 a.click();
+document.body.removeChild(a);
 URL.revokeObjectURL(a.href);
 }
 
@@ -733,7 +736,11 @@ wrap.innerHTML=html;
 
 async function exportInventoryCsv(){
 const list=await getAll(stores.stock);
-const header=["试剂名称","分类","包装规格","批号","生产日期","有效期至","库存数量","试剂品牌","储存位置","比对状态","备注"];
+if(list.length===0){
+    alert("当前没有库存数据，无法导出");
+    return;
+}
+const header=["试剂名称","分类","包装规格","批号","库存数量","生产日期","有效期至","试剂品牌","储存位置","比对状态","备注"];
 const lines=[];
 lines.push(header.join(","));
 list.forEach(item=>{
@@ -742,9 +749,9 @@ const row=[
 `"${(item.cate||"").replace(/"/g,'""')}"`,
 `"${(item.spec||"").replace(/"/g,'""')}"`,
 `"${(item.batch||"").replace(/"/g,'""')}"`,
+item.num,
 `"${item.prodDate||""}"`,
 `"${item.expDate||""}"`,
-item.num,
 `"${(item.sup||"").replace(/"/g,'""')}"`,
 `"${item.position||"常温"}"`,
 `"${item.compareStatus||"未比对"}"`,
@@ -759,7 +766,10 @@ const now=new Date();
 const y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,"0"),d=String(now.getDate()).padStart(2,"0");
 a.href=URL.createObjectURL(blob);
 a.download=`试剂月度盘存_${y}年${m}月${d}日.csv`;
+//修复IOS、部分浏览器导出失效，必须先加到body再点击
+document.body.appendChild(a);
 a.click();
+document.body.removeChild(a);
 URL.revokeObjectURL(a.href);
 }
 
@@ -781,7 +791,9 @@ const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
 const a=document.createElement("a");
 a.href=URL.createObjectURL(blob);
 a.download="试剂管理系统完整备份.json";
+document.body.appendChild(a);
 a.click();
+document.body.removeChild(a);
 URL.revokeObjectURL(a.href);
 }
 
@@ -796,7 +808,7 @@ await new Promise(res=>tx.oncomplete=res);
 
 for(const s of json.stock) await add(stores.stock,s);
 if(json.reagentLib) for(const r of json.reagentLib) await add(stores.reagentLib,r);
-if(json.cateLib) for(const c of json.cateLib) await add(stores.cateLib,c);
+if(json.cateLib) for(const c of json.cateLib) await add(stores.cateLib,r);
 if(json.specLib) for(const s of json.specLib) await add(stores.specLib,s);
 if(json.supLib) for(const sp of json.supLib) await add(stores.supLib,sp);
 
@@ -891,7 +903,7 @@ if(field==="name"&&val) hasName=true;
 }
 if(!hasName) continue;
 if(!nameSet.has(item.name)){await add(stores.reagentLib,{name:item.name});nameSet.add(item.name);}
-if(item.cate&&!cateSet.has(item.cate)){await add(stores.cateLib,{name:item.cate});cateSet.add(item.cate);}
+if(item.cate&&!cateSet.has(item.cate)){await add(stores.cateLib,{name:item.cate});cateSet.add(item.name);}
 if(item.spec&&!specSet.has(item.spec)){await add(stores.specLib,{name:item.spec});specSet.add(item.spec);}
 if(item.sup&&!supSet.has(item.sup)){await add(stores.supLib,{name:item.sup});supSet.add(item.sup);}
 
