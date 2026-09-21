@@ -25,7 +25,6 @@ label{font-size:13px;margin:4px 0;font-weight:500}
 .input-wrap{display:flex;gap:6px;position:relative}
 input,select,textarea{padding:10px 12px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px;flex-grow:1}
 .menu-btn{width:42px;border:1px solid #cbd5e0;background:#2b6cb0;color:#fff;border-radius:6px;cursor:pointer;font-size:18px}
-/* 输入联想下拉：完全在输入框正下方弹出 */
 .drop-menu{position:absolute;top:100%;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:6px;max-height:260px;overflow-y:auto;z-index:9999;display:none;box-shadow:0 4px 12px #00000022;margin-top:4px}
 .drop-item{padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:14px}
 .drop-item:active{background:#edf2f7}
@@ -242,7 +241,6 @@ const DB_VERSION=12;
 let db=null;
 let currentEditRowId=null;
 let searchBatchKey = "";
-let searchTimer = null;
 const stores={
 stock:"stock",
 reagentLib:"reagentLib",
@@ -268,22 +266,16 @@ req.onerror=e=>rej(e.target.error)
 async function initDB(){
 await openDB();
 await renderAll();
+// 搜索事件绑定：纯input监听，无依赖，兼容所有环境
 const searchInput=document.getElementById("batchSearch");
-let isComposing = false;
+let searchTimer = null;
 function doSearch() {
     searchBatchKey = searchInput.value.trim().toLowerCase();
     renderStock();
 }
-function onSearchInput(){
-    if(isComposing) return;
+searchInput.addEventListener("input", function(){
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(doSearch, 250);
-}
-searchInput.addEventListener("input", onSearchInput);
-searchInput.addEventListener("compositionstart", ()=>{ isComposing = true; });
-searchInput.addEventListener("compositionend", ()=>{
-    isComposing = false;
-    onSearchInput();
+    searchTimer = setTimeout(doSearch, 200);
 });
 }
 async function getAll(storeName){
@@ -318,14 +310,10 @@ tx.objectStore(storeName).delete(id).onsuccess=()=>resolve();
 function closeAllDropdown(){
 document.querySelectorAll(".drop-menu").forEach(menu=>menu.style.display="none")
 }
-// 输入框实时联想下拉
+// 输入框实时联想
 async function bindAutoComplete(inputDom, storeKey){
     const menuDom = inputDom.parentElement.querySelector(".drop-menu");
-    let isInputComposing = false;
-
-    // 输入时弹出匹配列表
     inputDom.addEventListener("input", async function(){
-        if(isInputComposing) return;
         const kw = this.value.trim().toLowerCase();
         closeAllDropdown();
         if(!kw){
@@ -345,7 +333,7 @@ async function bindAutoComplete(inputDom, storeKey){
             li.className="drop-item";
             li.innerText=item.name;
             li.onclick=(e)=>{
-                e.stopPropagation(); // 阻止冒泡到document，避免被全局点击关闭
+                e.stopPropagation();
                 inputDom.value=item.name;
                 menuDom.style.display="none";
             }
@@ -353,12 +341,6 @@ async function bindAutoComplete(inputDom, storeKey){
         })
         menuDom.style.display="block";
     })
-    inputDom.addEventListener("compositionstart", ()=>{ isInputComposing = true; });
-    inputDom.addEventListener("compositionend", ()=>{
-        isInputComposing = false;
-        inputDom.dispatchEvent(new Event("input"));
-    });
-    // 点击下拉区域不冒泡关闭
     menuDom.onclick = (e)=>{ e.stopPropagation(); }
 }
 document.querySelectorAll(".menu-btn").forEach(btn=>{
