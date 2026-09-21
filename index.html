@@ -25,9 +25,10 @@ label{font-size:13px;margin:4px 0;font-weight:500}
 .input-wrap{display:flex;gap:6px;position:relative}
 input,select,textarea{padding:10px 12px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px;flex-grow:1}
 .menu-btn{width:42px;border:1px solid #cbd5e0;background:#2b6cb0;color:#fff;border-radius:6px;cursor:pointer;font-size:18px}
-.drop-menu{position:absolute;top:44px;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:6px;max-height:240px;overflow-y:auto;z-index:999;display:none}
-.drop-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid #eee}
-.drop-item:hover{background:#edf2f7}
+/* 输入联想下拉：完全在输入框正下方弹出 */
+.drop-menu{position:absolute;top:100%;left:0;width:100%;background:#fff;border:1px solid #ddd;border-radius:6px;max-height:260px;overflow-y:auto;z-index:9999;display:none;box-shadow:0 4px 12px #00000022;margin-top:4px}
+.drop-item{padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:14px}
+.drop-item:active{background:#edf2f7}
 textarea{min-height:70px}
 .btn{padding:8px 12px;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin:2px;
 -webkit-appearance:none;appearance:none}
@@ -53,7 +54,7 @@ ul{padding-left:20px;list-style:none}
 .lib-block h4{margin-bottom:8px;font-size:14px;color:#2b6cb0}
 .lib-block li{margin:3px 0;display:flex;justify-content:space-between;align-items:center}
 .search-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
-#batchSearch{max-width:480px;-webkit-appearance:none;appearance:none}
+#batchSearch{max-width:480px;-webkit-appearance:none;appearance:none;autocomplete:off}
 .batch-del-bar{margin:8px 0;display:flex;gap:8px;align-items:center}
 .batch-del-bar label{font-size:13px;color:#666;margin:0}
 .chk-cell{text-align:center;width:36px}
@@ -62,6 +63,9 @@ ul{padding-left:20px;list-style:none}
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
+<input type="text" style="position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;" tabindex="-1" autocomplete="off">
+<input type="password" style="position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;" tabindex="-1" autocomplete="new-password">
+
 <h2>检验科试剂盘点管理系统</h2>
 <small>IndexedDB本地存储｜生化试剂比对｜完整档案库｜Excel批量导入｜XLSX盘存导出｜json备份恢复</small>
 <div class="tab-bar">
@@ -78,25 +82,25 @@ ul{padding-left:20px;list-style:none}
 <input type="hidden" id="editStockId" value="">
 <div class="row">
 <div class="form-item">
-<label>试剂名称（点击☰按钮选择档案📋）</label>
+<label>试剂名称（输入自动匹配下方候选）</label>
 <div class="input-wrap">
-<input id="stockName" placeholder="可手动输入">
+<input id="stockName" placeholder="输入自动弹出匹配候选" autocomplete="off">
 <button class="menu-btn" data-store="reagentLib">☰</button>
 <div class="drop-menu"></div>
 </div>
 </div>
 <div class="form-item">
-<label>试剂分类（点击☰按钮选择档案📋）</label>
+<label>试剂分类（输入自动匹配下方候选）</label>
 <div class="input-wrap">
-<input id="stockCate" placeholder="可手动输入">
+<input id="stockCate" placeholder="输入自动弹出匹配候选" autocomplete="off">
 <button class="menu-btn" data-store="cateLib">☰</button>
 <div class="drop-menu"></div>
 </div>
 </div>
 <div class="form-item">
-<label>包装规格（点击☰按钮选择档案📋）</label>
+<label>包装规格（输入自动匹配下方候选）</label>
 <div class="input-wrap">
-<input id="stockSpec" placeholder="可手动输入">
+<input id="stockSpec" placeholder="输入自动弹出匹配候选" autocomplete="off">
 <button class="menu-btn" data-store="specLib">☰</button>
 <div class="drop-menu"></div>
 </div>
@@ -105,7 +109,7 @@ ul{padding-left:20px;list-style:none}
 <div class="row">
 <div class="form-item">
 <label>批号</label>
-<input id="stockBatch">
+<input id="stockBatch" autocomplete="off">
 </div>
 <div class="form-item">
 <label>生产日期</label>
@@ -120,9 +124,9 @@ ul{padding-left:20px;list-style:none}
 <input type="number" id="stockNum" value="1">
 </div>
 <div class="form-item">
-<label>试剂品牌（点击☰按钮选择档案📋）</label>
+<label>试剂品牌（输入自动匹配下方候选）</label>
 <div class="input-wrap">
-<input id="stockSup" placeholder="可手动输入">
+<input id="stockSup" placeholder="输入自动弹出匹配候选" autocomplete="off">
 <button class="menu-btn" data-store="supLib">☰</button>
 <div class="drop-menu"></div>
 </div>
@@ -150,7 +154,7 @@ ul{padding-left:20px;list-style:none}
 <div class="card">
 <h3>库存列表 <small>红色=临近过期(有效期至≤30天)｜绿色=已比对｜点击数量可快速修改<br>💡比对状态修改请到【生化试剂比对】标签页操作｜搜索框实时过滤列表</small></h3>
 <div class="search-row">
-<input id="batchSearch" placeholder="实时搜索：试剂名称、品牌、批号、分类、规格、备注">
+<input id="batchSearch" placeholder="实时搜索：试剂名称、品牌、批号、分类、规格、备注" autocomplete="off">
 </div>
 <div class="batch-del-bar">
 <label><input type="checkbox" id="selectAllMain" onchange="toggleSelectAll(this)"> 全选</label>
@@ -183,26 +187,26 @@ ul{padding-left:20px;list-style:none}
 <div id="reagentlib" class="panel">
 <div class="card">
 <h3>试剂档案库（维护下拉候选数据）</h3>
-<p>在此录入常用【名称、分类、包装规格、试剂品牌】；库存页面点击☰按钮选用；分类填写<strong>生化</strong>，才出现在生化比对页面</p>
+<p>在此录入常用【名称、分类、包装规格、试剂品牌】；库存页面输入时自动弹出候选；分类填写<strong>生化</strong>，才出现在生化比对页面</p>
 <div class="row">
 <div class="form-item">
 <label>新增试剂名称</label>
-<input id="libName">
+<input id="libName" autocomplete="off">
 <button class="btn btn-primary" onclick="addReagentLib()">添加名称</button>
 </div>
 <div class="form-item">
 <label>新增分类</label>
-<input id="libCate">
+<input id="libCate" autocomplete="off">
 <button class="btn btn-primary" onclick="addCateLib()">添加分类</button>
 </div>
 <div class="form-item">
 <label>新增包装规格</label>
-<input id="libSpec">
+<input id="libSpec" autocomplete="off">
 <button class="btn btn-primary" onclick="addSpecLib()">添加规格</button>
 </div>
 <div class="form-item">
 <label>新增试剂品牌</label>
-<input id="libSup">
+<input id="libSup" autocomplete="off">
 <button class="btn btn-primary" onclick="addSupLib()">添加品牌</button>
 </div>
 </div>
@@ -238,6 +242,7 @@ const DB_VERSION=12;
 let db=null;
 let currentEditRowId=null;
 let searchBatchKey = "";
+let searchTimer = null;
 const stores={
 stock:"stock",
 reagentLib:"reagentLib",
@@ -263,15 +268,23 @@ req.onerror=e=>rej(e.target.error)
 async function initDB(){
 await openDB();
 await renderAll();
-//====修复iOS Safari搜索框失效，同时绑定input+propertychange兼容移动端====
 const searchInput=document.getElementById("batchSearch");
-const searchFn = async function(){
-    searchBatchKey = this.value.trim().toLowerCase();
-    await renderStock();
-};
-searchInput.removeEventListener("input", searchFn);
-searchInput.addEventListener("input", searchFn);
-searchInput.addEventListener("propertychange", searchFn);
+let isComposing = false;
+function doSearch() {
+    searchBatchKey = searchInput.value.trim().toLowerCase();
+    renderStock();
+}
+function onSearchInput(){
+    if(isComposing) return;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(doSearch, 250);
+}
+searchInput.addEventListener("input", onSearchInput);
+searchInput.addEventListener("compositionstart", ()=>{ isComposing = true; });
+searchInput.addEventListener("compositionend", ()=>{
+    isComposing = false;
+    onSearchInput();
+});
 }
 async function getAll(storeName){
 return new Promise(res=>{
@@ -305,10 +318,14 @@ tx.objectStore(storeName).delete(id).onsuccess=()=>resolve();
 function closeAllDropdown(){
 document.querySelectorAll(".drop-menu").forEach(menu=>menu.style.display="none")
 }
-//====新增：输入框输入时自动匹配档案下拉提示函数====
+// 输入框实时联想下拉
 async function bindAutoComplete(inputDom, storeKey){
-    const menuDom = inputDom.nextElementSibling;
+    const menuDom = inputDom.parentElement.querySelector(".drop-menu");
+    let isInputComposing = false;
+
+    // 输入时弹出匹配列表
     inputDom.addEventListener("input", async function(){
+        if(isInputComposing) return;
         const kw = this.value.trim().toLowerCase();
         closeAllDropdown();
         if(!kw){
@@ -327,7 +344,8 @@ async function bindAutoComplete(inputDom, storeKey){
             const li=document.createElement("div");
             li.className="drop-item";
             li.innerText=item.name;
-            li.onclick=()=>{
+            li.onclick=(e)=>{
+                e.stopPropagation(); // 阻止冒泡到document，避免被全局点击关闭
                 inputDom.value=item.name;
                 menuDom.style.display="none";
             }
@@ -335,12 +353,17 @@ async function bindAutoComplete(inputDom, storeKey){
         })
         menuDom.style.display="block";
     })
+    inputDom.addEventListener("compositionstart", ()=>{ isInputComposing = true; });
+    inputDom.addEventListener("compositionend", ()=>{
+        isInputComposing = false;
+        inputDom.dispatchEvent(new Event("input"));
+    });
+    // 点击下拉区域不冒泡关闭
+    menuDom.onclick = (e)=>{ e.stopPropagation(); }
 }
 document.querySelectorAll(".menu-btn").forEach(btn=>{
 const storeKey = btn.dataset.store;
 const inputDom=btn.previousElementSibling;
-const menuDom=btn.nextElementSibling;
-//绑定输入自动联想
 bindAutoComplete(inputDom, storeKey);
 
 btn.onclick=async function(e){
@@ -361,7 +384,8 @@ listData.forEach(item=>{
 const li=document.createElement("div");
 li.className="drop-item";
 li.innerText=item.name;
-li.onclick=()=>{
+li.onclick=(e)=>{
+e.stopPropagation();
 iDom.value=item.name;
 mDom.style.display="none";
 }
@@ -509,7 +533,6 @@ if(!confirm("确定删除这条库存记录？此操作不可恢复！")) return
 await del(stores.stock,id);
 await renderAll();
 }
-// ========== 批量删除 ==========
 window.toggleSelectAll=function(chk){
 document.querySelectorAll(".row-chk").forEach(c=>{
 c.checked=chk.checked;
@@ -540,12 +563,9 @@ await renderAll();
 alert(`✅已删除 ${ids.length} 条记录`);
 }
 async function renderStock(){
-//每次都从数据库拿最新全部数据
 let list=await getAll(stores.stock);
-// 搜索过滤
 if(searchBatchKey!==''){
 list=list.filter(i=>{
-    //多字段模糊匹配：名称、分类、规格、批号、品牌、备注
     const name=(i.name||"").toLowerCase();
     const cate=(i.cate||"").toLowerCase();
     const spec=(i.spec||"").toLowerCase();
@@ -562,7 +582,6 @@ list=list.filter(i=>{
 }
 const wrap=document.getElementById("stockTableWrap");
 if(!list.length){wrap.innerHTML="<p>暂无库存数据（无匹配搜索结果）</p>";return;}
-//表头调整：名称→分类→数量→包装规格→批号
 let html=`<table>
 <tr>
 <th class="chk-cell"></th>
@@ -662,7 +681,6 @@ const now=new Date();
 const y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,"0"),d=String(now.getDate()).padStart(2,"0");
 XLSX.writeFile(wb,`生化试剂比对_${y}年${m}月${d}日.xlsx`);
 }
-//月度盘存导出原生XLSX
 async function exportInventoryXlsx(){
 const list=await getAll(stores.stock);
 if(list.length===0){
@@ -792,7 +810,6 @@ if(json.supLib) for(const sp of json.supLib) await add(stores.supLib,sp);
 await renderAll();
 alert("✅导入完成");
 }
-// Excel列名映射
 const COL_MAP={
 "试剂名称":"name",
 "名称":"name",
