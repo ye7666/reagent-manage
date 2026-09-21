@@ -58,6 +58,7 @@ ul{padding-left:20px;list-style:none}
 .batch-del-bar label{font-size:13px;color:#666;margin:0}
 .chk-cell{text-align:center;width:36px}
 .chk-cell input[type="checkbox"]{width:18px;height:18px;cursor:pointer}
+.search-status{font-size:12px;color:#2b6cb0;margin-left:8px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -154,6 +155,7 @@ ul{padding-left:20px;list-style:none}
 <h3>库存列表 <small>红色=临近过期(有效期至≤30天)｜绿色=已比对｜点击数量可快速修改<br>💡比对状态修改请到【生化试剂比对】标签页操作｜搜索框实时过滤列表</small></h3>
 <div class="search-row">
 <input id="batchSearch" placeholder="实时搜索：试剂名称、品牌、批号、分类、规格、备注" autocomplete="off">
+<span class="search-status" id="searchStatus"></span>
 </div>
 <div class="batch-del-bar">
 <label><input type="checkbox" id="selectAllMain" onchange="toggleSelectAll(this)"> 全选</label>
@@ -241,6 +243,10 @@ const DB_VERSION=12;
 let db=null;
 let currentEditRowId=null;
 let searchBatchKey = "";
+// 全局内存缓存：所有库存数据
+let allStockCache = [];
+// 全局档案缓存
+let reagentLibCache = [], cateLibCache = [], specLibCache = [], supLibCache = [];
 const stores={
 stock:"stock",
 reagentLib:"reagentLib",
@@ -248,6 +254,22 @@ cateLib:"cateLib",
 specLib:"specLib",
 supLib:"supLib"
 }
+// ========== 第一步：页面一加载就先绑定搜索事件，不等数据库打开！ ==========
+window.addEventListener('DOMContentLoaded', function(){
+    const searchInput=document.getElementById("batchSearch");
+    const searchStatus=document.getElementById("searchStatus");
+    let searchTimer = null;
+    function doSearch() {
+        searchBatchKey = searchInput.value.trim().toLowerCase();
+        searchStatus.innerText = searchBatchKey ? `🔍搜索：${searchBatchKey}` : "";
+        renderStock(); // 直接渲染，不读数据库
+    }
+    searchInput.addEventListener("input", function(){
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(doSearch, 150);
+    });
+});
+
 function openDB(){
 return new Promise((res,rej)=>{
 const req=indexedDB.open(DB_NAME,DB_VERSION);
@@ -265,18 +287,13 @@ req.onerror=e=>rej(e.target.error)
 }
 async function initDB(){
 await openDB();
+// 数据库打开后，把所有数据读到内存缓存
+allStockCache = await getAll(stores.stock);
+reagentLibCache = await getAll(stores.reagentLib);
+cateLibCache = await getAll(stores.cateLib);
+specLibCache = await getAll(stores.specLib);
+supLibCache = await getAll(stores.supLib);
 await renderAll();
-// 搜索事件绑定：纯input监听，无依赖，兼容所有环境
-const searchInput=document.getElementById("batchSearch");
-let searchTimer = null;
-function doSearch() {
-    searchBatchKey = searchInput.value.trim().toLowerCase();
-    renderStock();
-}
-searchInput.addEventListener("input", function(){
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(doSearch, 200);
-});
 }
 async function getAll(storeName){
 return new Promise(res=>{
@@ -288,6 +305,14 @@ const cur=e.target.result;
 if(cur){arr.push(cur.value);cur.continue();}else res(arr);
 }
 })
+}
+// 刷新内存缓存
+async function refreshCache(){
+allStockCache = await getAll(stores.stock);
+reagentLibCache = await getAll(stores.reagentLib);
+cateLibCache = await getAll(stores.cateLib);
+specLibCache = await getAll(stores.specLib);
+supLibCache = await getAll(stores.supLib);
 }
 async function add(storeName,obj){
 return new Promise((resolve)=>{
@@ -310,18 +335,22 @@ tx.objectStore(storeName).delete(id).onsuccess=()=>resolve();
 function closeAllDropdown(){
 document.querySelectorAll(".drop-menu").forEach(menu=>menu.style.display="none")
 }
-// 输入框实时联想
+// 输入框实时联想，用内存缓存，秒出结果
 async function bindAutoComplete(inputDom, storeKey){
     const menuDom = inputDom.parentElement.querySelector(".drop-menu");
-    inputDom.addEventListener("input", async function(){
+    inputDom.addEventListener("input", function(){
         const kw = this.value.trim().toLowerCase();
         closeAllDropdown();
         if(!kw){
             menuDom.style.display="none";
             return;
         }
-        const allList = await getAll(stores[storeKey]);
-        const filterList = allList.filter(item=> item.name.toLowerCase().includes(kw));
+        let cache;
+        if(storeKey==="reagentLib") cache=reagentLibCache;
+        else if(storeKey==="cateLib") cache=cateLibCache;
+        else if(storeKey==="specLib") cache=specLibCache;
+        else if(storeKey==="supLib") cache=supLibCache;
+        const filterList = cache.filter(item=> item.name.toLowerCase().includes(kw));
         menuDom.innerHTML="";
         if(filterList.length ===0){
             menuDom.innerHTML=`<div class="drop-item">无匹配档案</div>`;
@@ -354,15 +383,18 @@ closeAllDropdown();
 const sk=this.dataset.store;
 const mDom=this.nextElementSibling;
 const iDom=this.previousElementSibling;
-try{
-const listData=await getAll(stores[sk]);
+let cache;
+if(sk==="reagentLib") cache=reagentLibCache;
+else if(sk==="cateLib") cache=cateLibCache;
+else if(sk==="specLib") cache=specLibCache;
+else if(sk==="supLib") cache=supLibCache;
 mDom.innerHTML="";
-if(listData.length===0){
+if(cache.length===0){
 mDom.innerHTML=`<div class="drop-item">暂无档案数据，请前往试剂档案页面添加</div>`;
 mDom.style.display="block";
 return;
 }
-listData.forEach(item=>{
+cache.forEach(item=>{
 const li=document.createElement("div");
 li.className="drop-item";
 li.innerText=item.name;
@@ -374,10 +406,6 @@ mDom.style.display="none";
 mDom.appendChild(li);
 })
 mDom.style.display="block";
-}catch(err){
-alert("数据表读取失败，请刷新页面重试");
-console.error(err);
-}
 }
 })
 document.onclick=()=>closeAllDropdown();
@@ -412,17 +440,12 @@ const sup=document.getElementById("stockSup").value.trim();
 const remark=document.getElementById("stockRemark").value.trim();
 const position=document.getElementById("stockPosition").value;
 if(!name){alert("试剂名称不能为空");return;}
-const allNames=await getAll(stores.reagentLib);
-const allCates=await getAll(stores.cateLib);
-const allSpec=await getAll(stores.specLib);
-const allSup=await getAll(stores.supLib);
-if(!allNames.find(x=>x.name===name)) await add(stores.reagentLib,{name});
-if(!allCates.find(x=>x.name===cate)) await add(stores.cateLib,{name});
-if(spec && !allSpec.find(x=>x.name===spec)) await add(stores.specLib,{name});
-if(sup && !allSup.find(x=>x.name===sup)) await add(stores.supLib,{name});
+if(!reagentLibCache.find(x=>x.name===name)) await add(stores.reagentLib,{name});
+if(cate && !cateLibCache.find(x=>x.name===cate)) await add(stores.cateLib,{name:cate});
+if(spec && !specLibCache.find(x=>x.name===spec)) await add(stores.specLib,{name:spec});
+if(sup && !supLibCache.find(x=>x.name===sup)) await add(stores.supLib,{name:sup});
 if(editId){
-const allStock=await getAll(stores.stock);
-const item=allStock.find(d=>d.id===Number(editId));
+const item=allStockCache.find(d=>d.id===Number(editId));
 item.spec=spec;
 item.batch=batch;
 item.prodDate=prodDate;
@@ -442,6 +465,7 @@ compareStatus:"未比对",createTime:new Date().toISOString()
 });
 alert("✅保存库存成功");
 }
+await refreshCache();
 await renderAll();
 }
 window.clearStockForm=function(){
@@ -462,8 +486,7 @@ document.getElementById("editIdText").innerText="";
 }
 }
 window.editStock=async function(id){
-const all=await getAll(stores.stock);
-const item=all.find(d=>d.id===id);
+const item=allStockCache.find(d=>d.id===id);
 if(!item)return;
 currentEditRowId=id;
 document.getElementById("editStockId").value=item.id;
@@ -483,8 +506,7 @@ await renderAll();
 document.querySelector("#stock .card").scrollIntoView({behavior:"smooth"});
 }
 window.quickEditQty=async function(id){
-const all=await getAll(stores.stock);
-const item=all.find(d=>d.id===id);
+const item=allStockCache.find(d=>d.id===id);
 if(!item)return;
 const newQty=prompt("修改库存数量：",item.num);
 if(newQty===null)return;
@@ -492,27 +514,26 @@ const n=Number(newQty);
 if(isNaN(n)||n<0){alert("请输入有效数字");return;}
 item.num=n;
 await put(stores.stock,item);
+await refreshCache();
 await renderAll();
 }
 window.toggleCompareStatus=async function(id){
-const all=await getAll(stores.stock);
-const item=all.find(d=>d.id===id);
+const item=allStockCache.find(d=>d.id===id);
 if(!item) return;
 if(!item.compareStatus) item.compareStatus="未比对";
 const targetNew=item.compareStatus==="已比对"?"未比对":"已比对";
 const ok=confirm(`确定标记为【${targetNew}】吗？`);
-if(!ok){
-alert("已取消本次比对状态修改");
-return;
-}
+if(!ok){alert("已取消本次比对状态修改");return;}
 item.compareStatus=targetNew;
 await put(stores.stock,item);
+await refreshCache();
 await renderCompareTable();
 await renderStock();
 }
 window.delStock=async function(id){
 if(!confirm("确定删除这条库存记录？此操作不可恢复！")) return;
 await del(stores.stock,id);
+await refreshCache();
 await renderAll();
 }
 window.toggleSelectAll=function(chk){
@@ -541,17 +562,19 @@ checked.forEach(c=>ids.push(Number(c.value)));
 for(const id of ids){
 await del(stores.stock,id);
 }
+await refreshCache();
 await renderAll();
 alert(`✅已删除 ${ids.length} 条记录`);
 }
-async function renderStock(){
-let list=await getAll(stores.stock);
+// 渲染库存列表：纯内存过滤，不读数据库
+function renderStock(){
+let list=[...allStockCache];
 if(searchBatchKey!==''){
 list=list.filter(i=>{
     const name=(i.name||"").toLowerCase();
     const cate=(i.cate||"").toLowerCase();
     const spec=(i.spec||"").toLowerCase();
-    const batch=(i.batch||"").toLowerCase();
+    const batch=(String(i.batch||"")).toLowerCase();
     const sup=(i.sup||"").toLowerCase();
     const remark=(i.remark||"").toLowerCase();
     return name.includes(searchBatchKey)
@@ -609,9 +632,8 @@ wrap.innerHTML=html;
 updateSelectedCount();
 }
 async function renderCompareTable(){
+let list=allStockCache.filter(r=> (r.cate||"") === "生化");
 const filter=document.getElementById("compareFilter").value;
-const all=await getAll(stores.stock);
-let list=all.filter(r=> (r.cate||"") === "生化");
 if(filter==="yes") list=list.filter(x=>x.compareStatus==="已比对");
 if(filter==="no") list=list.filter(x=>x.compareStatus==="未比对");
 const wrap=document.getElementById("compareWrap");
@@ -637,24 +659,22 @@ html+="</table>";
 wrap.innerHTML=html;
 }
 async function exportCompareCsv(){
+let list=allStockCache.filter(r=> (r.cate||"") === "生化");
 const filter=document.getElementById("compareFilter").value;
-const all=await getAll(stores.stock);
-let list=all.filter(r=> (r.cate||"") === "生化");
 if(filter==="yes") list=list.filter(x=>x.compareStatus==="已比对");
 if(filter==="no") list=list.filter(x=>x.compareStatus==="未比对");
 const header=["试剂名称","分类","批号","生产日期","有效期至","库存数量","比对状态"];
 const rowsData=[header];
 list.forEach(item=>{
-const row=[
-(item.name||""),
-(item.cate||""),
-(item.batch||""),
+rowsData.push([
+item.name||"",
+item.cate||"",
+item.batch||"",
 item.prodDate||"",
 item.expDate||"",
 item.num,
 item.compareStatus||"未比对"
-];
-rowsData.push(row);
+]);
 })
 const ws=XLSX.utils.aoa_to_sheet(rowsData);
 const wb=XLSX.utils.book_new();
@@ -664,28 +684,16 @@ const y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,"0"),d=String(no
 XLSX.writeFile(wb,`生化试剂比对_${y}年${m}月${d}日.xlsx`);
 }
 async function exportInventoryXlsx(){
-const list=await getAll(stores.stock);
-if(list.length===0){
-    alert("当前没有库存数据，无法导出");
-    return;
-}
+const list=allStockCache;
+if(list.length===0){alert("当前没有库存数据，无法导出");return;}
 const header=["试剂名称","分类","包装规格","批号","库存数量","生产日期","有效期至","试剂品牌","储存位置","比对状态","备注"];
 const rowsData=[header];
 list.forEach(item=>{
-const row=[
-item.name||"",
-item.cate||"",
-item.spec||"",
-item.batch||"",
-item.num,
-item.prodDate||"",
-item.expDate||"",
-item.sup||"",
-item.position||"常温",
-item.compareStatus||"未比对",
-item.remark||""
-];
-rowsData.push(row);
+rowsData.push([
+item.name||"",item.cate||"",item.spec||"",item.batch||"",item.num,
+item.prodDate||"",item.expDate||"",item.sup||"",
+item.position||"常温",item.compareStatus||"未比对",item.remark||""
+]);
 })
 const ws=XLSX.utils.aoa_to_sheet(rowsData);
 const wb=XLSX.utils.book_new();
@@ -699,6 +707,7 @@ const n=document.getElementById("libName").value.trim();
 if(!n){alert("请输入试剂名称");return;}
 await add(stores.reagentLib,{name:n});
 document.getElementById("libName").value="";
+await refreshCache();
 await renderAll();
 }
 window.addCateLib=async function(){
@@ -706,6 +715,7 @@ const c=document.getElementById("libCate").value.trim();
 if(!c){alert("请输入分类名称");return;}
 await add(stores.cateLib,{name:c});
 document.getElementById("libCate").value="";
+await refreshCache();
 await renderAll();
 }
 window.addSpecLib=async function(){
@@ -713,6 +723,7 @@ const s=document.getElementById("libSpec").value.trim();
 if(!s){alert("请输入包装规格");return;}
 await add(stores.specLib,{name:s});
 document.getElementById("libSpec").value="";
+await refreshCache();
 await renderAll();
 }
 window.addSupLib=async function(){
@@ -720,52 +731,45 @@ const sp=document.getElementById("libSup").value.trim();
 if(!sp){alert("请输入试剂品牌");return;}
 await add(stores.supLib,{name:sp});
 document.getElementById("libSup").value="";
+await refreshCache();
 await renderAll();
 }
 window.delLibItem=async function(store,id){
 if(!confirm("确定删除这条档案记录？")) return;
 await del(store,id);
+await refreshCache();
 await renderAll();
 }
 async function renderLib(){
-const names=await getAll(stores.reagentLib);
-const cates=await getAll(stores.cateLib);
-const specs=await getAll(stores.specLib);
-const sups=await getAll(stores.supLib);
 const wrap=document.getElementById("libTableWrap");
 let html=`
 <div class="lib-block">
 <h4>📋试剂名称档案</h4><ul>
-${names.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("reagentLib",${x.id})'>删除</button></li>`).join("")}
+${reagentLibCache.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("reagentLib",${x.id})'>删除</button></li>`).join("")}
 </ul></div>
 <div class="lib-block">
 <h4>📋分类档案</h4><ul>
-${cates.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("cateLib",${x.id})'>删除</button></li>`).join("")}
+${cateLibCache.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("cateLib",${x.id})'>删除</button></li>`).join("")}
 </ul></div>
 <div class="lib-block">
 <h4>📋包装规格档案</h4><ul>
-${specs.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("specLib",${x.id})'>删除</button></li>`).join("")}
+${specLibCache.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("specLib",${x.id})'>删除</button></li>`).join("")}
 </ul></div>
 <div class="lib-block">
 <h4>📋试剂品牌档案</h4><ul>
-${sups.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("supLib",${x.id})'>删除</button></li>`).join("")}
+${supLibCache.map(x=>`<li>${x.name}<button class="btn" onclick='delLibItem("supLib",${x.id})'>删除</button></li>`).join("")}
 </ul></div>
 `;
 wrap.innerHTML=html;
 }
 async function exportData(){
-const stock=await getAll(stores.stock);
-const rlib=await getAll(stores.reagentLib);
-const clib=await getAll(stores.cateLib);
-const slib=await getAll(stores.specLib);
-const suplib=await getAll(stores.supLib);
 const data={
-    stock,
-    reagentLib:rlib,
-    cateLib:clib,
-    specLib:slib,
-    supLib:suplib,
-    exportAt:new Date().toISOString()
+stock:allStockCache,
+reagentLib:reagentLibCache,
+cateLib:cateLibCache,
+specLib:specLibCache,
+supLib:supLibCache,
+exportAt:new Date().toISOString()
 };
 const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
 const a=document.createElement("a");
@@ -789,51 +793,25 @@ if(json.reagentLib) for(const r of json.reagentLib) await add(stores.reagentLib,
 if(json.cateLib) for(const c of json.cateLib) await add(stores.cateLib,c);
 if(json.specLib) for(const s of json.specLib) await add(stores.specLib,s);
 if(json.supLib) for(const sp of json.supLib) await add(stores.supLib,sp);
+await refreshCache();
 await renderAll();
 alert("✅导入完成");
 }
 const COL_MAP={
-"试剂名称":"name",
-"名称":"name",
-"分类":"cate",
-"试剂分类":"cate",
-"包装规格":"spec",
-"规格":"spec",
-"试剂规格":"spec",
-"批号":"batch",
-"生产日期":"prodDate",
-"有效期至":"expDate",
-"失效时间":"expDate",
-"有效期":"expDate",
-"失效日期":"expDate",
-"库存数量":"num",
-"数量":"num",
-"试剂品牌":"sup",
-"供应商":"sup",
-"储存位置":"position",
-"备注":"remark"
+"试剂名称":"name","名称":"name","分类":"cate","试剂分类":"cate","包装规格":"spec","规格":"spec",
+"批号":"batch","生产日期":"prodDate","有效期至":"expDate","库存数量":"num","数量":"num",
+"试剂品牌":"sup","供应商":"sup","储存位置":"position","备注":"remark"
 }
 function parseExcelDate(val){
 if(!val) return "";
 if(typeof val==="number"){
 const d=new Date((val-25569)*86400*1000);
-const y=d.getUTCFullYear();
-const m=String(d.getUTCMonth()+1).padStart(2,"0");
-const day=String(d.getUTCDate()).padStart(2,"0");
-return `${y}-${m}-${day}`;
+return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}`;
 }
 if(val instanceof Date){
-const y=val.getFullYear();
-const m=String(val.getMonth()+1).padStart(2,"0");
-const d=String(val.getDate()).padStart(2,"0");
-return `${y}-${m}-${d}`;
+return `${val.getFullYear()}-${String(val.getMonth()+1).padStart(2,"0")}-${String(val.getDate()).padStart(2,"0")}`;
 }
-const s=String(val).trim();
-if(/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(s)){
-const parts=s.split(/[-/]/);
-return `${parts[0]}-${parts[1].padStart(2,"0")}-${parts[2].padStart(2,"0")}`;
-}
-return s;
+return String(val).trim();
 }
 window.importExcel=async function(){
 const fileInput=document.getElementById("excelFile");
@@ -844,19 +822,14 @@ resultDom.innerText="正在解析...";
 try{
 const data=await file.arrayBuffer();
 const wb=XLSX.read(data,{type:"array",cellDates:true});
-const firstSheet=wb.SheetNames[0];
-const ws=wb.Sheets[firstSheet];
+const ws=wb.Sheets[wb.SheetNames[0]];
 const rows=XLSX.utils.sheet_to_json(ws,{defval:""});
 if(!rows.length){resultDom.innerText="❌Excel里没有数据";return;}
 let success=0;
-const allNames=await getAll(stores.reagentLib);
-const allCates=await getAll(stores.cateLib);
-const allSpec=await getAll(stores.specLib);
-const allSup=await getAll(stores.supLib);
-const nameSet=new Set(allNames.map(x=>x.name));
-const cateSet=new Set(allCates.map(x=>x.name));
-const specSet=new Set(allSpec.map(x=>x.name));
-const supSet=new Set(allSup.map(x=>x.name));
+const nameSet=new Set(reagentLibCache.map(x=>x.name));
+const cateSet=new Set(cateLibCache.map(x=>x.name));
+const specSet=new Set(specLibCache.map(x=>x.name));
+const supSet=new Set(supLibCache.map(x=>x.name));
 for(const row of rows){
 const item={compareStatus:"未比对",createTime:new Date().toISOString(),position:"常温"};
 let hasName=false;
@@ -877,6 +850,7 @@ if(item.sup&&!supSet.has(item.sup)){await add(stores.supLib,{name:item.sup});sup
 await add(stores.stock,item);
 success++;
 }
+await refreshCache();
 resultDom.innerText=`✅导入成功！共导入 ${success} 条库存记录`;
 await renderAll();
 }catch(e){
